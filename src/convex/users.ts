@@ -38,6 +38,34 @@ export const updateUserRole = mutation({
   },
 });
 
+// Auto-assign role based on email domain for new users
+export const assignRoleOnSignup = mutation({
+  args: {
+    userId: v.id("users"),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user || user.role) return; // Already has a role
+
+    let role: "admin" | "teacher" | "student" | "parent" | "staff" = "student";
+
+    // Assign role based on email domain
+    if (args.email.includes("@philos-eduos.com")) {
+      role = "admin";
+    } else if (args.email.includes("@teacher.")) {
+      role = "teacher";
+    } else if (args.email.includes("@parent.")) {
+      role = "parent";
+    } else if (args.email.includes("@staff.")) {
+      role = "staff";
+    }
+
+    await ctx.db.patch(args.userId, { role });
+    return role;
+  },
+});
+
 // Student queries
 export const getStudents = query({
   args: {},

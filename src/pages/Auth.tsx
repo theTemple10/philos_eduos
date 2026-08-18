@@ -14,7 +14,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail, ShieldCheck, UserX } from "lucide-react";
+import { ArrowRight, Loader2, Mail, ShieldCheck, UserX, GraduationCap, Users, BookOpen } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -78,6 +78,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     try {
       const formData = new FormData(event.currentTarget);
       await signIn("email-otp", formData);
+      // DashboardRouter will handle role-based routing after auth
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
@@ -92,6 +93,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       await signIn("anonymous");
+      // Guest users get student role by default in DashboardRouter
       navigate(redirect);
     } catch (error) {
       console.error("Guest login error:", error);
@@ -177,8 +179,32 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       disabled={isLoading}
                     >
                       <UserX className="mr-2 h-4 w-4" />
-                      Explore as Guest
+                      Continue as Guest (Demo)
                     </Button>
+
+                    <div className="mt-6 p-4 rounded-xl bg-slate-50/80 border border-slate-100">
+                      <p className="text-xs font-semibold text-slate-600 mb-3 text-center">Choose your role for demo access:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { role: "admin", label: "Admin", icon: ShieldCheck, desc: "System admin" },
+                          { role: "teacher", label: "Teacher", icon: BookOpen, desc: "Teaching portal" },
+                          { role: "student", label: "Student", icon: GraduationCap, desc: "Student portal" },
+                          { role: "parent", label: "Parent", icon: Users, desc: "Parent portal" },
+                        ].map((r) => (
+                          <Button
+                            key={r.role}
+                            type="button"
+                            variant="outline"
+                            className="h-auto py-3 border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white font-semibold rounded-xl transition-all flex flex-col items-center gap-1"
+                            onClick={handleGuestLogin}
+                            disabled={isLoading}
+                          >
+                            <r.icon className="h-4 w-4" />
+                            <span className="text-xs">{r.label}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </form>

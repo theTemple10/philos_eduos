@@ -9,6 +9,7 @@ import {
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function ParentDashboard() {
   const { user, signOut } = useAuth();
@@ -63,7 +64,8 @@ export default function ParentDashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-100/50">
+        <div className="p-4 border-t border-slate-100/50 space-y-3">
+          <RoleSwitcher currentRole="parent" />
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/80 border border-slate-100">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-200">
               {user?.name ? user.name.split(" ").map(n => n[0]).join("") : "PA"}

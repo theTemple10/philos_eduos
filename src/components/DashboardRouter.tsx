@@ -6,6 +6,7 @@ import TeacherDashboard from "./dashboards/TeacherDashboard";
 import StudentDashboard from "./dashboards/StudentDashboard";
 import ParentDashboard from "./dashboards/ParentDashboard";
 import StaffDashboard from "./dashboards/StaffDashboard";
+import RoleSelection from "./RoleSelection";
 
 export default function DashboardRouter() {
   const { user, isLoading } = useAuth();
@@ -29,6 +30,11 @@ export default function DashboardRouter() {
 
   const role = user.role as string;
 
+  // If user has no role, show role selection
+  if (!role) {
+    return <RoleSelection />;
+  }
+
   // Route to appropriate dashboard based on role
   switch (role) {
     case "super_admin":
@@ -43,7 +49,7 @@ export default function DashboardRouter() {
     case "staff":
       return <StaffDashboard />;
     default:
-      // Default to student dashboard for new users or those without a role
-      return <StudentDashboard />;
+      // If unknown role, show role selection
+      return <RoleSelection />;
   }
 }

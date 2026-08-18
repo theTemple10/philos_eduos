@@ -101,11 +101,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50/50">
       {/* Nav */}
-      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
-          <div className="bg-blue-600 text-white p-1.5 rounded-lg">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100/50 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center gap-2.5 cursor-pointer" onClick={() => navigate("/")}>
+          <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm shadow-blue-600/20">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <span className="font-bold text-xl tracking-tight text-slate-900">Philos <span className="text-yellow-500">EduOS</span></span>
@@ -113,19 +113,19 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       </nav>
 
       {/* Auth Content */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        <Card className="w-full max-w-md border-slate-200 shadow-xl shadow-slate-200/50">
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-md border-slate-200/60 shadow-2xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
           {step === "signIn" ? (
             <>
               <CardHeader className="text-center pt-8 pb-4">
                 <div className="flex justify-center mb-4">
-                  <div className="bg-blue-100 text-blue-600 p-3 rounded-2xl">
+                  <div className="bg-slate-50 text-slate-700 p-3 rounded-2xl border border-slate-100">
                     <ShieldCheck className="w-8 h-8" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl font-bold text-slate-900">Welcome to Philos EduOS</CardTitle>
-                <CardDescription className="text-slate-500 mt-1">
-                  Enter your email to access the school management system
+                <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight">Welcome to Philos EduOS</CardTitle>
+                <CardDescription className="text-slate-500 mt-1 font-medium">
+                  Sign in or create an account to access the management system
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleEmailSubmit}>
@@ -137,7 +137,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         name="email"
                         placeholder="name@school.edu"
                         type="email"
-                        className="pl-9 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                        className="pl-9 border-slate-200 focus:border-blue-500 focus:ring-blue-500 bg-slate-50/50"
                         disabled={isLoading}
                         required
                       />
@@ -146,7 +146,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       type="submit"
                       size="icon"
                       disabled={isLoading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                      className="bg-slate-900 hover:bg-slate-800 text-white shrink-0 rounded-xl"
                     >
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -156,7 +156,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     </Button>
                   </div>
                   {error && (
-                    <p className="mt-2 text-sm text-red-500">{error}</p>
+                    <p className="mt-2 text-sm text-red-500 font-medium">{error}</p>
                   )}
 
                   <div className="mt-6">
@@ -165,19 +165,19 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         <span className="w-full border-t border-slate-200" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-slate-400 font-medium">Or</span>
+                        <span className="bg-white px-2 text-slate-400 font-semibold tracking-wider">Or</span>
                       </div>
                     </div>
 
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full mt-4 border-slate-200 text-slate-700 hover:bg-slate-50"
+                      className="w-full mt-4 border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold rounded-xl"
                       onClick={handleGuestLogin}
                       disabled={isLoading}
                     >
                       <UserX className="mr-2 h-4 w-4" />
-                      Continue as Guest (Demo)
+                      Explore as Guest
                     </Button>
                   </div>
                 </CardContent>
@@ -187,14 +187,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
             <>
               <CardHeader className="text-center pt-8 pb-4">
                 <div className="flex justify-center mb-4">
-                  <div className="bg-yellow-100 text-yellow-600 p-3 rounded-2xl">
+                  <div className="bg-slate-50 text-slate-700 p-3 rounded-2xl border border-slate-100">
                     <Mail className="w-8 h-8" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl font-bold text-slate-900">Check your email</CardTitle>
-                <CardDescription className="text-slate-500 mt-1">
-                  We&apos;ve sent a verification code to<br />
-                  <span className="font-medium text-slate-700">{step.email}</span>
+                <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight">Check Your Email</CardTitle>
+                <CardDescription className="text-slate-500 mt-1 font-medium">
+                  We&apos;ve sent a secure verification code to<br />
+                  <span className="font-semibold text-slate-900">{step.email}</span>
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleOtpSubmit}>
@@ -217,29 +217,29 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     >
                       <InputOTPGroup>
                         {Array.from({ length: 6 }).map((_, index) => (
-                          <InputOTPSlot key={index} index={index} className="border-slate-200" />
+                          <InputOTPSlot key={index} index={index} className="border-slate-200 bg-slate-50/50" />
                         ))}
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
                   {error && (
-                    <p className="mt-2 text-sm text-red-500 text-center">{error}</p>
+                    <p className="mt-2 text-sm text-red-500 text-center font-medium">{error}</p>
                   )}
-                  <p className="text-sm text-slate-500 text-center mt-4">
+                  <p className="text-sm text-slate-500 text-center mt-4 font-medium">
                     Didn&apos;t receive a code?{" "}
                     <Button
                       variant="link"
-                      className="p-0 h-auto text-blue-600 hover:text-blue-700"
+                      className="p-0 h-auto text-slate-900 font-semibold hover:text-blue-600"
                       onClick={() => setStep("signIn")}
                     >
                       Try again
                     </Button>
                   </p>
                 </CardContent>
-                <CardFooter className="flex-col gap-2 px-8 pb-8">
+                <CardFooter className="flex-col gap-3 px-8 pb-8">
                   <Button
                     type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-lg shadow-slate-900/20"
                     disabled={isLoading || otp.length !== 6}
                   >
                     {isLoading ? (
@@ -249,7 +249,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       </>
                     ) : (
                       <>
-                        Verify & Sign In
+                        Verify & Continue
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </>
                     )}
@@ -259,18 +259,17 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     variant="ghost"
                     onClick={() => setStep("signIn")}
                     disabled={isLoading}
-                    className="w-full text-slate-500 hover:text-slate-700"
+                    className="w-full text-slate-500 hover:text-slate-900 font-medium"
                   >
-                    Use different email
+                    Use a different email
                   </Button>
                 </CardFooter>
               </form>
             </>
           )}
 
-          <div className="py-4 px-6 text-xs text-center text-slate-400 bg-slate-50 border-t border-slate-100 rounded-b-lg">
-            Secure access powered by{" "}
-            <span className="font-medium text-slate-500">Philos EduOS</span>
+          <div className="py-4 px-6 text-[11px] font-semibold tracking-wide uppercase text-center text-slate-400 bg-slate-50/50 border-t border-slate-100 rounded-b-lg">
+            Secure Access Powered by Philos EduOS
           </div>
         </Card>
       </div>

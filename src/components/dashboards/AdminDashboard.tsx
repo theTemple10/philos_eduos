@@ -9,7 +9,6 @@ import {
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
@@ -61,7 +60,6 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="p-4 border-t border-slate-100/50 space-y-3">
-          <RoleSwitcher currentRole="admin" />
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/80 border border-slate-100">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600 border border-slate-200">
               {user?.name ? user.name.split(" ").map(n => n[0]).join("") : "AU"}
@@ -70,9 +68,9 @@ export default function AdminDashboard() {
               <p className="text-sm font-bold text-slate-800 truncate">{user?.name || "Admin User"}</p>
               <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">System Administrator</p>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="text-slate-500 hover:text-slate-900 hover:bg-slate-200/80 rounded-full"
               onClick={handleSignOut}
             >

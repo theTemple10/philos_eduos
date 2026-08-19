@@ -2,11 +2,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router";
 import { useEffect } from "react";
 import AdminDashboard from "./dashboards/AdminDashboard";
+import SchoolAdminDashboard from "./dashboards/SchoolAdminDashboard";
 import TeacherDashboard from "./dashboards/TeacherDashboard";
 import StudentDashboard from "./dashboards/StudentDashboard";
 import ParentDashboard from "./dashboards/ParentDashboard";
 import StaffDashboard from "./dashboards/StaffDashboard";
-import RoleSelection from "./RoleSelection";
+import Onboarding from "./RoleSelection";
 
 export default function DashboardRouter() {
   const { user, isLoading } = useAuth();
@@ -30,16 +31,16 @@ export default function DashboardRouter() {
 
   const role = user.role as string;
 
-  // If user has no role, show role selection
+  // No role (or not part of a school yet): onboarding.
   if (!role) {
-    return <RoleSelection />;
+    return <Onboarding />;
   }
 
-  // Route to appropriate dashboard based on role
   switch (role) {
     case "super_admin":
-    case "admin":
       return <AdminDashboard />;
+    case "admin":
+      return <SchoolAdminDashboard />;
     case "teacher":
       return <TeacherDashboard />;
     case "student":
@@ -49,7 +50,6 @@ export default function DashboardRouter() {
     case "staff":
       return <StaffDashboard />;
     default:
-      // If unknown role, show role selection
-      return <RoleSelection />;
+      return <Onboarding />;
   }
 }

@@ -1,86 +1,93 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, BookOpen, GraduationCap, Users, Wrench, Loader2, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Building2,
+  Ticket,
+  Loader2,
+  ShieldCheck,
+  ArrowRight,
+  CheckCircle2,
+} from "lucide-react";
 
-const ROLES = [
-  {
-    id: "admin" as const,
-    label: "System Administrator",
-    description: "Full platform oversight, tenant management, and system configuration",
-    icon: ShieldCheck,
-    color: "bg-red-50 text-red-600 border-red-100",
-    hoverColor: "hover:border-red-300 hover:bg-red-50/50",
-  },
-  {
-    id: "teacher" as const,
-    label: "Teacher",
-    description: "Manage classes, mark attendance, enter grades, and share study materials",
-    icon: BookOpen,
-    color: "bg-blue-50 text-blue-600 border-blue-100",
-    hoverColor: "hover:border-blue-300 hover:bg-blue-50/50",
-  },
-  {
-    id: "student" as const,
-    label: "Student",
-    description: "View grades, attendance, study materials, and class schedule",
-    icon: GraduationCap,
-    color: "bg-green-50 text-green-600 border-green-100",
-    hoverColor: "hover:border-green-300 hover:bg-green-50/50",
-  },
-  {
-    id: "parent" as const,
-    label: "Parent / Guardian",
-    description: "Track children's performance, attendance, and transportation status",
-    icon: Users,
-    color: "bg-yellow-50 text-yellow-600 border-yellow-100",
-    hoverColor: "hover:border-yellow-300 hover:bg-yellow-50/50",
-  },
-  {
-    id: "staff" as const,
-    label: "Non-Teaching Staff",
-    description: "Manage tasks, inventory, and maintenance requests",
-    icon: Wrench,
-    color: "bg-slate-100 text-slate-600 border-slate-200",
-    hoverColor: "hover:border-slate-400 hover:bg-slate-50",
-  },
+const CURRICULUM_OPTIONS = [
+  { id: "waec_neco", label: "WAEC / NECO (Nigeria)" },
+  { id: "cambridge", label: "Cambridge" },
+  { id: "ib", label: "International Baccalaureate (IB)" },
+  { id: "american", label: "American" },
 ] as const;
 
-export default function RoleSelection() {
-  const { user } = useAuth();
-  const updateUserRole = useMutation(api.users.updateUserRole);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+export default function Onboarding() {
+  const user = useQuery(api.users.currentUser);
+  const createTenant = useMutation(api.users.createTenant);
+  const redeemInvite = useMutation(api.users.redeemInvite);
+
+  const [mode, setMode] = useState<"create" | "join">("create");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSelectRole = async (roleId: string) => {
-    if (!user?._id) return;
-    setSelectedRole(roleId);
-    setIsSaving(true);
+  const handleCreateSchool = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
     setError(null);
-
+    const formData = new FormData(event.currentTarget);
     try {
-      await updateUserRole({
-        userId: user._id,
-        role: roleId as "admin" | "teacher" | "student" | "parent" | "staff",
+      await createTenant({
+        name: String(formData.get("name") ?? ""),
+        curriculum: String(
+          formData.get("curriculum") ?? "waec_neco",
+        ) as "waec_neco" | "cambridge" | "ib" | "american",
       });
-      // Force a page reload to pick up the new role
+      setSuccess("Your school was created. Setting up your dashboard…");
       window.location.reload();
     } catch (err) {
-      console.error("Failed to set role:", err);
-      setError("Failed to save your role. Please try again.");
-      setIsSaving(false);
-      setSelectedRole(null);
+      setError(
+        err instanceof Error ? err.message : "Couldn't create your school. Please try again.",
+      );
+      setIsSubmitting(false);
     }
   };
 
+  const handleRedeemInvite = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    const formData = new FormData(event.currentTarget);
+    try {
+      await redeemInvite({ code: String(formData.get("code") ?? "") });
+      setSuccess("Invite accepted. Setting up your dashboard…");
+      window.location.reload();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't redeem that invite. Please try again.",
+      );
+      setIsSubmitting(false);
+    }
+  };
+
+  if (user === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50/80">
+        <div className="animate-pulse text-slate-500 font-medium">Loading…</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50/80 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl">
-        {/* Header */}
+      <div className="w-full max-w-xl">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2.5 mb-6">
             <div className="bg-blue-600 text-white p-2 rounded-xl shadow-sm shadow-blue-600/20">
@@ -91,89 +98,171 @@ export default function RoleSelection() {
             </span>
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">
-            Welcome to Philos EduOS
+            Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>
           <p className="text-slate-500 font-medium text-lg max-w-md mx-auto">
-            Select your role to access the appropriate dashboard and features.
+            You&apos;re signed in but not part of a school yet. Create your
+            school, or join one with an invite code from the school admin.
           </p>
         </div>
 
-        {/* Error message */}
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm font-medium text-center">
             {error}
           </div>
         )}
+        {success && (
+          <div className="mb-6 p-4 rounded-xl bg-green-50 border border-green-100 text-green-700 text-sm font-medium text-center flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4" /> {success}
+          </div>
+        )}
 
-        {/* Role cards */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {ROLES.map((role) => {
-            const isSelected = selectedRole === role.id;
-            const isDisabled = isSaving && !isSelected;
-
-            return (
-              <Card
-                key={role.id}
-                className={`border-2 cursor-pointer transition-all duration-200 ${
-                  isSelected
-                    ? "border-blue-500 bg-blue-50/30 shadow-lg shadow-blue-500/10"
-                    : isDisabled
-                    ? "border-slate-100 opacity-50 cursor-not-allowed"
-                    : `border-slate-200 hover:shadow-md ${role.hoverColor}`
-                }`}
-                onClick={() => !isSaving && handleSelectRole(role.id)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center border ${role.color}`}
-                    >
-                      {isSaving && isSelected ? (
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                      ) : (
-                        <role.icon className="w-6 h-6" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-bold text-slate-800 mb-1">
-                        {role.label}
-                      </h3>
-                      <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                        {role.description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`text-xs font-semibold ${
-                        isSelected
-                          ? "text-blue-600"
-                          : "text-slate-400 hover:text-slate-700"
-                      }`}
-                      disabled={isSaving}
-                    >
-                      {isSelected ? (
-                        <span className="flex items-center gap-1">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Loading...
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1">
-                          Select <ArrowRight className="w-3 h-3" />
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div className="grid gap-4 sm:grid-cols-2 mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("create");
+              setError(null);
+            }}
+            className={`p-4 rounded-2xl border-2 text-left transition-all ${
+              mode === "create"
+                ? "border-blue-500 bg-blue-50/40 shadow-md"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
+          >
+            <Building2
+              className={`w-5 h-5 mb-2 ${
+                mode === "create" ? "text-blue-600" : "text-slate-400"
+              }`}
+            />
+            <p className="text-sm font-bold text-slate-800">Create my school</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">
+              Founder of a new school. You&apos;ll be its administrator.
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("join");
+              setError(null);
+            }}
+            className={`p-4 rounded-2xl border-2 text-left transition-all ${
+              mode === "join"
+                ? "border-blue-500 bg-blue-50/40 shadow-md"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
+          >
+            <Ticket
+              className={`w-5 h-5 mb-2 ${
+                mode === "join" ? "text-blue-600" : "text-slate-400"
+              }`}
+            />
+            <p className="text-sm font-bold text-slate-800">Join a school</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">
+              Teacher, student, parent or staff with an invite code.
+            </p>
+          </button>
         </div>
 
-        {/* Footer hint */}
-        <p className="text-center text-xs text-slate-400 font-medium mt-8">
-          You can change your role later from the dashboard settings.
+        {mode === "create" ? (
+          <Card className="border-slate-200/60 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
+            <CardContent className="p-6">
+              <form onSubmit={handleCreateSchool} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="school-name">School name</Label>
+                  <Input
+                    id="school-name"
+                    name="name"
+                    placeholder="e.g. Lagos Heights College"
+                    className="border-slate-200 bg-slate-50/50"
+                    disabled={isSubmitting}
+                    required
+                    minLength={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="school-curriculum">Curriculum</Label>
+                  <Select
+                    name="curriculum"
+                    defaultValue="waec_neco"
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger
+                      id="school-curriculum"
+                      className="border-slate-200 bg-slate-50/50"
+                    >
+                      <SelectValue placeholder="Select a curriculum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRICULUM_OPTIONS.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…
+                    </>
+                  ) : (
+                    <>
+                      Create my school <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-slate-200/60 shadow-xl shadow-slate-200/50 bg-white/90 backdrop-blur-xl">
+            <CardContent className="p-6">
+              <form onSubmit={handleRedeemInvite} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="invite-code">Invite code</Label>
+                  <Input
+                    id="invite-code"
+                    name="code"
+                    placeholder="e.g. A7K2M9QX"
+                    className="border-slate-200 bg-slate-50/50 uppercase tracking-widest"
+                    disabled={isSubmitting}
+                    required
+                    maxLength={12}
+                  />
+                  <p className="text-xs text-slate-500 font-medium">
+                    The code is tied to your email address — sign in with the
+                    email your school admin invited.
+                  </p>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Redeeming…
+                    </>
+                  ) : (
+                    <>
+                      Join my school <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        <p className="text-center text-xs text-slate-400 font-medium mt-6">
+          One account, one school. Invites are issued by your school&apos;s
+          administrator.
         </p>
       </div>
     </div>

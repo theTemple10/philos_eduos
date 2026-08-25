@@ -1,8 +1,15 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/hooks/use-auth";
+import { useStudents, useStudentByUser } from "@/hooks/use-students";
+import { useTeachers } from "@/hooks/use-teachers";
+import { useMyGrades } from "@/hooks/use-grades";
+import { useClasses } from "@/hooks/use-classes";
+import { useAttendanceByStudent } from "@/hooks/use-attendance";
+import { useMaterialsForStudent } from "@/hooks/use-materials";
+import { useAnnouncements } from "@/hooks/use-announcements";
+import { useMessages, useUnreadCount } from "@/hooks/use-messages";
+import { apiPost, apiPatch } from "@/lib/api/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +32,7 @@ import {
   Send,
   Loader2,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 
 function formatWhen(ts: number): string {
   const diff = Date.now() - ts;
@@ -61,17 +68,14 @@ function letterFor(pct: number): string {
 
 export default function StudentDashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState("overview");
 
-  const messages = useQuery(api.messages.getMessages);
-  const unreadCount = (messages ?? []).filter(
-    (m) => !m.read && m.receiverId === user?._id,
-  ).length;
+  const { data: unreadCountData } = useUnreadCount();
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    router.push("/");
   };
 
   return (
@@ -149,9 +153,9 @@ export default function StudentDashboard() {
             </div>
             <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full relative">
               <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
+              {unreadCountData > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white font-bold flex items-center justify-center">
-                  {unreadCount}
+                  {unreadCountData}
                 </span>
               )}
             </Button>
@@ -173,26 +177,20 @@ export default function StudentDashboard() {
 }
 
 function OverviewSection() {
-  const student = useQuery(api.students.getStudentByUser);
-  const myGrades = useQuery(api.grades.getMyGrades);
-  const classes = useQuery(api.classes.getClasses);
-  const materials = useQuery(
-    api.materials.getStudyMaterialsForStudent,
-    student ? { studentId: student._id } : "skip",
-  );
-  const attendance = useQuery(
-    api.attendance.getAttendanceForStudent,
-    student ? { studentId: student._id } : "skip",
-  );
+  const { data: student } = useStudentByUser();
+  const { data: myGrades } = useMyGrades();
+  const { data: classes } = useClasses();
+  const { data: materials } = useMaterialsForStudent(student?._id);
+  const { data: attendance } = useAttendanceByStudent(student?._id);
 
-  const myClass = (classes ?? []).find((c) => c._id === student?.classId);
+  const myClass = (classes ?? []).find((c: any) => c._id === student?.classId);
 
   const avgPct =
     myGrades && myGrades.length > 0
-      ? myGrades.reduce((acc, g) => acc + percentOf(g.score, g.maxScore), 0) / myGrades.length
+      ? myGrades.reduce((acc: number, g: any) => acc + percentOf(g.score, g.maxScore), 0) / myGrades.length
       : null;
   const present = (attendance ?? []).filter(
-    (r) => r.status === "present" || r.status === "late",
+    (r: any) => r.status === "present" || r.status === "late",
   ).length;
   const attendanceRate =
     attendance && attendance.length > 0
@@ -263,7 +261,7 @@ function OverviewSection() {
             {recentGrades.length === 0 && (
               <p className="text-sm text-slate-500 font-medium p-3">No grades recorded yet.</p>
             )}
-            {recentGrades.map((g) => {
+            {recentGrades.map((g: any) => {
               const pct = percentOf(g.score, g.maxScore);
               return (
                 <div key={g._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
@@ -295,11 +293,11 @@ function OverviewSection() {
 }
 
 function GradesSection() {
-  const myGrades = useQuery(api.grades.getMyGrades);
+  const { data: myGrades } = useMyGrades();
 
   const avgPct =
     myGrades && myGrades.length > 0
-      ? myGrades.reduce((acc, g) => acc + percentOf(g.score, g.maxScore), 0) / myGrades.length
+      ? myGrades.reduce((acc: number, g: any) => acc + percentOf(g.score, g.maxScore), 0) / myGrades.length
       : null;
 
   return (
@@ -338,14 +336,14 @@ function GradesSection() {
               </tr>
             </thead>
             <tbody>
-              {(myGrades ?? []).map((g) => {
+              {(myGrades ?? []).map((g: any) => {
                 const pct = percentOf(g.score, g.maxScore);
                 return (
                   <tr key={g._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
-                          {g.subject.split(" ").map(n => n[0]).join("")}
+                          {g.subject.split(" ").map((n: string) => n[0]).join("")}
                         </div>
                         <span className="text-sm font-semibold text-slate-800">{g.subject}</span>
                       </div>
@@ -383,17 +381,14 @@ function GradesSection() {
 }
 
 function AttendanceSection() {
-  const student = useQuery(api.students.getStudentByUser);
-  const records = useQuery(
-    api.attendance.getAttendanceForStudent,
-    student ? { studentId: student._id } : "skip",
-  );
+  const { data: student } = useStudentByUser();
+  const { data: records } = useAttendanceByStudent(student?._id);
 
   const stats = {
     total: (records ?? []).length,
-    present: (records ?? []).filter((r) => r.status === "present").length,
-    late: (records ?? []).filter((r) => r.status === "late").length,
-    absent: (records ?? []).filter((r) => r.status === "absent").length,
+    present: (records ?? []).filter((r: any) => r.status === "present").length,
+    late: (records ?? []).filter((r: any) => r.status === "late").length,
+    absent: (records ?? []).filter((r: any) => r.status === "absent").length,
   };
 
   return (
@@ -445,7 +440,7 @@ function AttendanceSection() {
               </tr>
             </thead>
             <tbody>
-              {(records ?? []).map((r) => (
+              {(records ?? []).map((r: any) => (
                 <tr key={r._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 pl-6 text-sm font-medium text-slate-700">{formatDate(r.date)}</td>
                   <td className="p-4 pr-6">
@@ -478,11 +473,8 @@ function AttendanceSection() {
 }
 
 function MaterialsSection() {
-  const student = useQuery(api.students.getStudentByUser);
-  const materials = useQuery(
-    api.materials.getStudyMaterialsForStudent,
-    student ? { studentId: student._id } : "skip",
-  );
+  const { data: student } = useStudentByUser();
+  const { data: materials } = useMaterialsForStudent(student?._id);
 
   return (
     <div>
@@ -494,7 +486,7 @@ function MaterialsSection() {
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {(materials ?? []).map((material) => (
+        {(materials ?? []).map((material: any) => (
           <Card key={material._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
@@ -542,7 +534,7 @@ function MaterialsSection() {
 }
 
 function AnnouncementsSection() {
-  const announcements = useQuery(api.announcements.getAnnouncements);
+  const { data: announcements } = useAnnouncements();
 
   return (
     <div>
@@ -559,7 +551,7 @@ function AnnouncementsSection() {
             </CardContent>
           </Card>
         )}
-        {(announcements ?? []).map((a) => (
+        {(announcements ?? []).map((a: any) => (
           <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -584,12 +576,10 @@ function AnnouncementsSection() {
 }
 
 function MessagesSection() {
-  const messages = useQuery(api.messages.getMessages);
-  const students = useQuery(api.students.getStudents);
-  const teachers = useQuery(api.teachers.getTeachers);
+  const { data: messages, refetch } = useMessages();
+  const { data: students } = useStudents();
+  const { data: teachers } = useTeachers();
   const { user } = useAuth();
-  const markMessageRead = useMutation(api.messages.markMessageRead);
-  const sendMessage = useMutation(api.messages.sendMessage);
 
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
@@ -601,15 +591,20 @@ function MessagesSection() {
   for (const t of teachers ?? []) nameById.set(t.userId, t.name);
 
   const senderName = (senderId: string) => {
-    if (senderId === user?._id) return "You";
+    if (senderId === user?.id) return "You";
     return nameById.get(senderId) ?? "School Member";
   };
 
-  const replyTarget = (messages ?? []).find((m) => m._id === replyingTo);
+  const replyTarget = (messages ?? []).find((m: any) => m._id === replyingTo);
 
-  const handleOpen = async (id: Id<"messages">, read: boolean) => {
+  const handleOpen = async (id: string, read: boolean) => {
     if (!read) {
-      await markMessageRead({ id });
+      try {
+        await apiPatch('/api/messages', { id });
+        await refetch();
+      } catch (_err) {
+        toast.error("Failed to mark message as read.");
+      }
     }
   };
 
@@ -618,9 +613,11 @@ function MessagesSection() {
     setSending(true);
     setError(null);
     try {
-      await sendMessage({ receiverId: replyTarget.senderId, content: replyContent.trim() });
+      await apiPost('/api/messages', { receiverId: replyTarget.senderId, content: replyContent.trim() });
+      toast.success("Message sent.");
       setReplyContent("");
       setReplyingTo(null);
+      await refetch();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't send that message.");
     } finally {
@@ -647,7 +644,7 @@ function MessagesSection() {
               </tr>
             </thead>
             <tbody>
-              {(messages ?? []).map((message) => (
+              {(messages ?? []).map((message: any) => (
                 <tr
                   key={message._id}
                   onClick={() => handleOpen(message._id, message.read)}
@@ -664,7 +661,7 @@ function MessagesSection() {
                   <td className="p-4 text-sm text-slate-500 max-w-xs truncate">{message.content}</td>
                   <td className="p-4 text-xs text-slate-400 font-medium">{formatWhen(message.createdAt)}</td>
                   <td className="p-4 pr-6 text-right">
-                    {message.senderId !== user?._id ? (
+                    {message.senderId !== user?.id ? (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -737,9 +734,9 @@ function MessagesSection() {
 }
 
 function ScheduleSection() {
-  const student = useQuery(api.students.getStudentByUser);
-  const classes = useQuery(api.classes.getClasses);
-  const myClass = (classes ?? []).find((c) => c._id === student?.classId);
+  const { data: student } = useStudentByUser();
+  const { data: classes } = useClasses();
+  const myClass = (classes ?? []).find((c: any) => c._id === student?.classId);
 
   const schedule = myClass
     ? [{ time: "--", class: myClass.name, teacher: "--", room: myClass.room || "--", days: "--" }]
@@ -771,7 +768,7 @@ function ScheduleSection() {
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
-                        {item.class.split(" ").map(n => n[0]).join("")}
+                        {item.class.split(" ").map((n: string) => n[0]).join("")}
                       </div>
                       <span className="text-sm font-semibold text-slate-800">{item.class}</span>
                     </div>

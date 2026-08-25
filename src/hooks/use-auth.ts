@@ -1,20 +1,62 @@
-import { api } from "@/convex/_generated/api";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useQuery } from "convex/react";
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { apiGet } from '@/lib/api/client';
+import { createClient } from '@/lib/supabase/client';
+
+type User = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: string | null;
+  tenantId: string | null;
+};
 
 export function useAuth() {
-  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
-  const user = useQuery(api.users.currentUser);
-  const { signIn, signOut } = useAuthActions();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClient();
 
-  // Derive isLoading directly from the dependencies instead of managing separate state
-  const isLoading = isAuthLoading || user === undefined;
+  const fetchUser = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
+      }
+      const profile = await apiGet<User>('/api/users');
+      setUser(profile);
+      setIsAuthenticated(true);
+    } catch {
+      setIsAuthenticated(false);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supabase]);
 
-  return {
-    isLoading,
-    isAuthenticated,
-    user,
-    signIn,
-    signOut,
+  useEffect(() => {
+    fetchUser();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchUser();
+    });
+    return () => subscription.unsubscribe();
+  }, [fetchUser, supabase]);
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    await fetchUser();
   };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  return { isLoading, isAuthenticated, user, signIn, signOut };
 }

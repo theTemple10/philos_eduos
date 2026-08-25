@@ -1,6 +1,9 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useMyTasks } from "@/hooks/use-tasks";
+import { useAnnouncements } from "@/hooks/use-announcements";
+import { useMessages } from "@/hooks/use-messages";
+import { apiPost, apiPatch, apiDelete } from "@/lib/api/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,18 +19,17 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Id } from "@/convex/_generated/dataModel";
 
 export default function StaffDashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState("overview");
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    router.push("/");
   };
 
   return (
@@ -132,17 +134,17 @@ function PlaceholderSection({ title, message }: { title: string; message: string
 }
 
 function OverviewSection() {
-  const tasks = useQuery(api.tasks.getMyTasks);
-  const announcements = useQuery(api.announcements.getAnnouncements);
-  const messages = useQuery(api.messages.getMessages);
+  const { data: tasks, isLoading: tasksLoading } = useMyTasks();
+  const { data: announcements } = useAnnouncements();
+  const { data: messages } = useMessages();
 
-  if (tasks === undefined) {
+  if (tasksLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
-  const pending = tasks.filter((t) => t.status !== "completed").length;
-  const completed = tasks.filter((t) => t.status === "completed").length;
-  const unread = (messages ?? []).filter((m) => !m.read).length;
+  const pending = tasks.filter((t: any) => t.status !== "completed").length;
+  const completed = tasks.filter((t: any) => t.status === "completed").length;
+  const unread = (messages ?? []).filter((m: any) => !m.read).length;
 
   const stats = [
     { label: "Pending Tasks", value: String(pending), change: "Assigned to me", icon: ClipboardCheck, color: "bg-yellow-50 text-yellow-600" },
@@ -181,7 +183,7 @@ function OverviewSection() {
         </CardHeader>
         <CardContent className="space-y-3">
           {tasks.length === 0 && <p className="text-sm text-slate-500 font-medium">No tasks assigned yet.</p>}
-          {tasks.slice(0, 5).map((t) => (
+          {tasks.slice(0, 5).map((t: any) => (
             <div key={t._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
               <div>
                 <p className="text-sm font-bold text-slate-800">{t.title}</p>
@@ -199,31 +201,37 @@ function OverviewSection() {
 }
 
 function TasksSection() {
-  const tasks = useQuery(api.tasks.getMyTasks);
-  const updateTask = useMutation(api.tasks.updateTask);
-  const deleteTask = useMutation(api.tasks.deleteTask);
+  const { data: tasks, isLoading, refetch } = useMyTasks();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  if (tasks === undefined) {
+  if (isLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
   const priorityColor = (p: string) =>
     p === "high" ? "bg-red-50 text-red-700 border border-red-100" : p === "medium" ? "bg-yellow-50 text-yellow-700 border border-yellow-100" : "bg-slate-50 text-slate-700 border border-slate-200";
 
-  const handleComplete = async (id: Id<"tasks">) => {
+  const handleComplete = async (id: string) => {
     setBusyId(id);
     try {
-      await updateTask({ id, status: "completed" });
+      await apiPatch('/api/tasks', { id, status: "completed" });
+      toast.success("Task marked as completed.");
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update task.");
     } finally {
       setBusyId(null);
     }
   };
 
-  const handleDelete = async (id: Id<"tasks">) => {
+  const handleDelete = async (id: string) => {
     setBusyId(id);
     try {
-      await deleteTask({ id });
+      await apiDelete('/api/tasks', { id });
+      toast.success("Task deleted.");
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete task.");
     } finally {
       setBusyId(null);
     }
@@ -245,7 +253,7 @@ function TasksSection() {
       )}
 
       <div className="grid gap-4">
-        {tasks.map((t) => (
+        {tasks.map((t: any) => (
           <Card key={t._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-4">
@@ -292,9 +300,9 @@ function TasksSection() {
 }
 
 function AnnouncementsSection() {
-  const announcements = useQuery(api.announcements.getAnnouncements);
+  const { data: announcements, isLoading } = useAnnouncements();
 
-  if (announcements === undefined) {
+  if (isLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
@@ -314,7 +322,7 @@ function AnnouncementsSection() {
       )}
 
       <div className="space-y-4">
-        {announcements.map((a) => (
+        {announcements.map((a: any) => (
           <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -340,27 +348,27 @@ function AnnouncementsSection() {
 
 function MessagesSection() {
   const { user } = useAuth();
-  const messages = useQuery(api.messages.getMessages);
-  const markMessageRead = useMutation(api.messages.markMessageRead);
-  const sendMessage = useMutation(api.messages.sendMessage);
+  const { data: messages, isLoading, refetch } = useMessages();
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
 
-  if (messages === undefined) {
+  if (isLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
-  const incoming = messages.filter((m) => m.receiverId === user?._id).sort((a, b) => b._creationTime - a._creationTime);
-  const sent = messages.filter((m) => m.senderId === user?._id).sort((a, b) => b._creationTime - a._creationTime);
+  const incoming = messages.filter((m: any) => m.receiverId === user?.id).sort((a: any, b: any) => b.createdAt - a.createdAt);
+  const sent = messages.filter((m: any) => m.senderId === user?.id).sort((a: any, b: any) => b.createdAt - a.createdAt);
 
   const handleSend = async () => {
     if (!replyTo || !content.trim()) return;
     try {
-      await sendMessage({ receiverId: replyTo as Id<"users">, content });
+      await apiPost('/api/messages', { receiverId: replyTo, content: content.trim() });
+      toast.success("Message sent.");
       setContent("");
       setReplyTo(null);
+      await refetch();
     } catch (err) {
-      console.error("Failed to send message:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to send message.");
     }
   };
 
@@ -394,11 +402,11 @@ function MessagesSection() {
               </tr>
             </thead>
             <tbody>
-              {incoming.map((m) => (
+              {incoming.map((m: any) => (
                 <tr key={m._id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${!m.read ? "bg-blue-50/30" : ""}`}>
                   <td className="p-4 pl-6 text-sm font-semibold text-slate-800">School Member</td>
                   <td className="p-4 text-sm text-slate-600 max-w-md truncate">{m.content}</td>
-                  <td className="p-4 text-xs text-slate-400 font-medium">{new Date(m._creationTime).toLocaleString()}</td>
+                  <td className="p-4 text-xs text-slate-400 font-medium">{new Date(m.createdAt).toLocaleString()}</td>
                   <td className="p-4 pr-6 text-right">
                     <div className="flex gap-2 justify-end">
                       {!m.read && (
@@ -406,7 +414,14 @@ function MessagesSection() {
                           variant="ghost"
                           size="sm"
                           className="text-slate-500 hover:text-slate-900 font-semibold"
-                          onClick={() => markMessageRead({ id: m._id })}
+                          onClick={async () => {
+                            try {
+                              await apiPatch('/api/messages', { id: m._id });
+                              await refetch();
+                            } catch (_err) {
+                              toast.error("Failed to mark as read.");
+                            }
+                          }}
                         >
                           Mark read
                         </Button>
@@ -460,10 +475,10 @@ function MessagesSection() {
             <CardTitle className="text-base font-bold text-slate-800">Sent</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {sent.slice(0, 5).map((m) => (
+            {sent.slice(0, 5).map((m: any) => (
               <div key={m._id} className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
                 <p className="text-sm text-slate-700">{m.content}</p>
-                <p className="text-xs text-slate-400 mt-1">{new Date(m._creationTime).toLocaleString()}</p>
+                <p className="text-xs text-slate-400 mt-1">{new Date(m.createdAt).toLocaleString()}</p>
               </div>
             ))}
           </CardContent>

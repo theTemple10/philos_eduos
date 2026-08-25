@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { apiPost } from "@/lib/api/client";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+
 const CURRICULUM_OPTIONS = [
   { id: "waec_neco", label: "WAEC / NECO (Nigeria)" },
   { id: "cambridge", label: "Cambridge" },
@@ -29,9 +30,7 @@ const CURRICULUM_OPTIONS = [
 ] as const;
 
 export default function Onboarding() {
-  const user = useQuery(api.users.currentUser);
-  const createTenant = useMutation(api.users.createTenant);
-  const redeemInvite = useMutation(api.users.redeemInvite);
+  const { user, isLoading: authLoading } = useAuth();
 
   const [mode, setMode] = useState<"create" | "join">("create");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,13 +43,13 @@ export default function Onboarding() {
     setError(null);
     const formData = new FormData(event.currentTarget);
     try {
-      await createTenant({
+      await apiPost("/api/tenants", {
         name: String(formData.get("name") ?? ""),
         curriculum: String(
           formData.get("curriculum") ?? "waec_neco",
-        ) as "waec_neco" | "cambridge" | "ib" | "american",
+        ),
       });
-      setSuccess("Your school was created. Setting up your dashboard…");
+      setSuccess("Your school was created. Setting up your dashboard\u2026");
       window.location.reload();
     } catch (err) {
       setError(
@@ -66,8 +65,8 @@ export default function Onboarding() {
     setError(null);
     const formData = new FormData(event.currentTarget);
     try {
-      await redeemInvite({ code: String(formData.get("code") ?? "") });
-      setSuccess("Invite accepted. Setting up your dashboard…");
+      await apiPost("/api/users", { action: "redeemInvite", code: String(formData.get("code") ?? "") });
+      setSuccess("Invite accepted. Setting up your dashboard\u2026");
       window.location.reload();
     } catch (err) {
       setError(
@@ -77,10 +76,10 @@ export default function Onboarding() {
     }
   };
 
-  if (user === undefined) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50/80">
-        <div className="animate-pulse text-slate-500 font-medium">Loading…</div>
+        <div className="animate-pulse text-slate-500 font-medium">Loading\u2026</div>
       </div>
     );
   }

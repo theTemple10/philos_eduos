@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import AdminDashboard from "./dashboards/AdminDashboard";
 import SchoolAdminDashboard from "./dashboards/SchoolAdminDashboard";
@@ -11,13 +11,13 @@ import Onboarding from "./RoleSelection";
 
 export default function DashboardRouter() {
   const { user, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !user) {
-      navigate("/auth?returnTo=/dashboard");
+      router.push("/auth?returnTo=/dashboard");
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, router]);
 
   if (isLoading) {
     return (

@@ -1,92 +1,113 @@
-# Running and Deploying Philos EduOS
+# Deploying Philos EduOS
 
 ## Prerequisites
 
-- **Node.js >= 20.19** (Vite requires it; Node 22 LTS recommended). Check with `node -v`.
-- A [Convex](https://convex.dev) account (free tier is enough to start).
-- Optional: an [Anthropic](https://console.anthropic.com) API key (AI report comments) and a [Paystack](https://paystack.com) account (fee collection).
+- Node.js >= 20
+- A [Supabase](https://supabase.com) account (free tier works)
+- A [Vercel](https://vercel.com) account (free tier works)
+- A [Resend](https://resend.com) account (free tier: 100 emails/day)
 
-## Run locally
+Optional: [Paystack](https://paystack.com) for payments, [Anthropic](https://console.anthropic.com) for AI report comments.
+
+---
+
+## 1. Create a Supabase Project
+
+1. Go to [supabase.com/dashboard](https://supabase.com/dashboard) and create a new project.
+2. Note your **Project URL** and **Anon Key** from Settings → API.
+3. Go to Settings → Database → Connection string → **URI** and copy the pooler URL (port 6543).
+   Replace `[YOUR-PASSWORD]` with your database password.
+4. Go to Authentication → Providers → **Email** and ensure it's enabled (OTP is on by default).
+
+## 2. Set Up the Database
 
 ```bash
-# 1. Upgrade Node to >= 20.19 (nvm install 22 && nvm use 22), then:
+# Copy env vars
+cp .env.example .env.local
 
-# 2. Fresh install (fixes the missing @tailwindcss/oxide native binding):
-rm -rf node_modules package-lock.json && npm install
+# Fill in .env.local with your Supabase credentials:
+#   NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+#   DATABASE_URL=postgresql://postgres.xxxx:xxxx@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 
-# 3. Start the Convex backend (local dev server, auto-deploys your code):
-npx convex dev
+# Push the Drizzle schema to your Supabase Postgres database
+npm run db:push
+```
 
-# 4. In a second terminal, run the frontend:
+This creates all 19 tables (users, tenants, students, teachers, classes, attendance, grades, etc.).
+
+## 3. Set Up Resend (Email OTP)
+
+1. Sign up at [resend.com](https://resend.com) and create an API key.
+2. Add `RESEND_API_KEY=re_xxxxx` to `.env.local`.
+
+Note: Supabase Auth handles sending OTP codes natively. Resend is used for transactional emails (announcements, notifications). If you just want to test, Supabase's built-in email works out of the box.
+
+## 4. Deploy to Vercel
+
+1. Push this repo to GitHub.
+2. In [vercel.com/new](https://vercel.com/new), import the repository.
+3. Vercel auto-detects Next.js. Framework preset: **Next.js**.
+4. Add environment variables in Vercel project settings:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` |
+| `DATABASE_URL` | `postgresql://postgres.xxxx:...` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (from Supabase Settings → API → service_role) |
+| `RESEND_API_KEY` | `re_xxxxx` |
+| `SITE_URL` | `https://your-app.vercel.app` |
+| `PAYSTACK_SECRET_KEY` | `sk_test_xxxxx` (if using payments) |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` (if using AI comments) |
+
+5. Deploy. Every push to the default branch triggers automatic redeployment.
+
+## 5. Configure Supabase Auth Redirects
+
+In your Supabase dashboard → Authentication → URL Configuration:
+- **Site URL**: `https://your-app.vercel.app`
+- **Redirect URLs**: Add `https://your-app.vercel.app/auth/callback`
+
+## 6. Bootstrap the First Admin
+
+The `super_admin` role cannot be granted through the app. Set it manually:
+
+1. After signing up, go to the Supabase dashboard → Table Editor → `users` table.
+2. Find your user row and set `role` to `super_admin`.
+
+You can now manage tenants and users from the Admin Dashboard.
+
+## 7. Paystack Webhook (Optional)
+
+If using payments:
+1. Set your Paystack webhook URL to `https://your-app.vercel.app/api/payments`
+2. Set `PAYSTACK_SECRET_KEY` in both `.env.local` and Vercel env vars.
+
+---
+
+## Local Development
+
+```bash
+npm install
+cp .env.example .env.local
+# Fill in .env.local with your credentials
+npm run db:push
 npm run dev
 ```
 
-Convex dev mode provides a local backend and a dashboard at `localhost:8181`.
+Open [http://localhost:3000](http://localhost:3000).
 
-**First-run flow:**
-1. Open the app, click **Get Started**, and sign up with your email (one-time OTP).
-2. The onboarding screen lets you **create a school** (you become its admin) or **redeem an invite**.
-3. Explore each role's dashboard — staff/student/parent accounts are created via invites from the School Admin dashboard.
+## Custom Domain
 
-For local testing of AI report comments, set `ANTHROPIC_API_KEY` in the Convex dev dashboard's environment variables.
-
-## Deploy for general access
-
-The app has two parts:
-- **Backend**: Convex (serverless data + auth + webhooks + AI actions).
-- **Frontend**: a static site (Vite build) — deploy to Vercel, Netlify, or Cloudflare Pages.
-
-### 1. Backend — Convex
-
-```bash
-npx convex login
-npx convex deploy   # pushes schema + all functions; responds with your deployment URL
-```
-
-You'll get a URL like `https://joyful-lion-1234.convex.cloud`.
-
-Then set environment variables in the Convex dashboard (`Deployment Settings → Environment Variables`):
-
-| Variable             | Required | Purpose                                      |
-| -------------------- | -------- | -------------------------------------------- |
-| `ANTHROPIC_API_KEY`  | no       | AI-assisted report comments                  |
-| `PAYSTACK_SECRET_KEY`| no       | Fee payments (sk_test_... / sk_live_...)     |
-| `SITE_URL`           | yes      | Your frontend URL (see below)                |
-
-### 2. Paystack webhook (no domain needed)
-
-Convex gives every deployment a free public HTTPS domain: `https://<your-deployment>.convex.site`.
-
-In your Paystack dashboard, set the **webhook URL** to:
-
-```
-https://<your-deployment>.convex.site/paystack-webhook
-```
-
-### 3. Frontend — Vercel (recommended)
-
-1. Push this repo to GitHub.
-2. In Vercel: **Add New → Project**, import the repo. Vercel detects Vite automatically.
-3. Add the env var `VITE_CONVEX_URL=https://<your-deployment>.convex.cloud` (in the project's Settings → Environment Variables, plus `VITE_SITE_URL` if referenced).
-4. Deploy. Every push to the default branch redeploys automatically.
-
-### 4. One-time bootstrapping
-
-The `super_admin` (platform) role can never be granted through the app. Bootstrap it once:
-- In the Convex dashboard, open the `users` table, find your user row, and set `role` to `"super_admin"` manually — **or**
-- Run the `grantSuperAdmin` function from the Convex dashboard's function runner (requires an existing `super_admin`).
-
-Platform-level management (tenants, users, `grantSuperAdmin`) is then available in the Admin dashboard.
-
-## Add a custom domain later
-
-No rework needed:
-1. Add the domain in your Vercel project (Settings → Domains) and point the DNS CNAME at Vercel.
-2. Update `SITE_URL` in the Convex dashboard environment variables.
-3. Optionally configure a custom domain on the Convex deployment (`convex.cloud` custom domains) if you want the API/webhook URL to match.
+1. Add the domain in Vercel project settings → Domains.
+2. Update DNS as instructed by Vercel.
+3. Update `SITE_URL` in Vercel env vars.
+4. Update Supabase Auth redirect URLs.
 
 ## Troubleshooting
 
-- **`npm install` fails on `@tailwindcss/oxide`**: happens on older Node/npm versions. Upgrade to Node 20.19+ / npm 10+, delete `node_modules` and `package-lock.json`, reinstall.
-- **`npx convex dev` shows codegen errors**: `src/convex/_generated` is gitignored and generated on demand; don't commit it.
-- **Payments not completing**: verify the webhook URL, the `PAYSTACK_SECRET_KEY`, and that the deployment's `SITE_URL` matches the frontend.
+- **Build fails with Supabase errors**: Ensure `.env.local` exists with valid credentials. The app needs env vars at build time for type checking.
+- **OTP emails not arriving**: Check Supabase Auth → Email provider is enabled. For production, configure a custom SMTP provider in Supabase.
+- **Database connection errors**: Use the pooler URL (port 6543), not the direct connection (port 5432). The pooler is designed for serverless environments.
+- **`npm run db:push` fails**: Verify `DATABASE_URL` uses the correct password and pooler endpoint.

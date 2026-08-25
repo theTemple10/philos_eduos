@@ -1,6 +1,15 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useAction, useMutation, useQueries, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useStudents } from "@/hooks/use-students";
+import { useClasses } from "@/hooks/use-classes";
+import { useAttendanceByStudent } from "@/hooks/use-attendance";
+import { useGradesByStudent } from "@/hooks/use-grades";
+import { useMaterialsForStudent } from "@/hooks/use-materials";
+import { useMyTransportation } from "@/hooks/use-transportation";
+import { useInvoices, useMyPayments } from "@/hooks/use-payments";
+import { useAnnouncements } from "@/hooks/use-announcements";
+import { useMessages } from "@/hooks/use-messages";
+import { apiPost, apiPatch } from "@/lib/api/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,19 +29,18 @@ import {
   BookMarked,
   Loader2,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Id } from "@/convex/_generated/dataModel";
 
 export default function ParentDashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState("overview");
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    router.push("/");
   };
 
   return (
@@ -133,13 +141,13 @@ export default function ParentDashboard() {
 
 function useMyChildren() {
   const { user } = useAuth();
-  const students = useQuery(api.students.getStudents);
-  const classes = useQuery(api.classes.getClasses);
-  if (students === undefined || classes === undefined) return undefined;
-  const mine = students.filter((s) => s.parentId === user?._id);
-  return mine.map((s) => ({
+  const { data: students, isLoading: studentsLoading } = useStudents();
+  const { data: classes, isLoading: classesLoading } = useClasses();
+  if (studentsLoading || classesLoading) return undefined;
+  const mine = students.filter((s: any) => s.parentId === user?.id);
+  return mine.map((s: any) => ({
     ...s,
-    className: classes.find((c) => c._id === s.classId)?.name ?? "Class",
+    className: classes.find((c: any) => c._id === s.classId)?.name ?? "Class",
   }));
 }
 
@@ -173,23 +181,18 @@ function ChildSelector({
 
 function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => void }) {
   const myChildren = useMyChildren();
-  const messages = useQuery(api.messages.getMessages);
-  const invoices = useQuery(api.payments.getInvoices);
-  const attendanceQueries = useQueries(
-    Object.fromEntries(
-      (myChildren ?? []).map((child, i) => [
-        `child${i}`,
-        { query: api.attendance.getAttendanceForStudent, args: { studentId: child._id as Id<"students"> } },
-      ]),
-    ),
-  );
+  const { data: messages } = useMessages();
+  const { data: invoices } = useInvoices();
+  const { data: attendance1 } = useAttendanceByStudent(myChildren?.[0]?._id);
+  const { data: attendance2 } = useAttendanceByStudent(myChildren?.[1]?._id);
+  const { data: attendance3 } = useAttendanceByStudent(myChildren?.[2]?._id);
 
   const attendanceRate = (() => {
-    const all = Object.values(attendanceQueries)
-      .map((q) => (q as { _id: Id<"attendance">; status: string; date: string }[] | undefined) ?? [])
+    const all = [attendance1, attendance2, attendance3]
+      .filter(Boolean)
       .flat();
     if (all.length === 0) return null;
-    const present = all.filter((r) => r.status !== "absent").length;
+    const present = all.filter((r: any) => r.status !== "absent").length;
     return Math.round((present / all.length) * 100);
   })();
 
@@ -198,13 +201,13 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
   }
 
   const outstandingKobo = (invoices ?? [])
-    .filter((i) => i.status === "pending" || i.status === "partial")
-    .reduce((sum, i) => sum + (i.amountKobo - i.paidAmountKobo), 0);
+    .filter((i: any) => i.status === "pending" || i.status === "partial")
+    .reduce((sum: number, i: any) => sum + (i.amountKobo - i.paidAmountKobo), 0);
 
   const stats = [
     { label: "Children Enrolled", value: String(myChildren.length), change: "Active students", icon: Users, color: "bg-blue-50 text-blue-600" },
     { label: "Attendance Rate", value: attendanceRate === null ? "--" : `${attendanceRate}%`, change: "Across all children", icon: CheckCircle2, color: "bg-slate-50 text-slate-600" },
-    { label: "Unread Messages", value: String((messages ?? []).filter((m) => m.receiverId === undefined || !m.read).length), change: "Inbox", icon: MessageSquare, color: "bg-green-50 text-green-600" },
+    { label: "Unread Messages", value: String((messages ?? []).filter((m: any) => m.receiverId === undefined || !m.read).length), change: "Inbox", icon: MessageSquare, color: "bg-green-50 text-green-600" },
     { label: "Outstanding Fees", value: `₦${(outstandingKobo / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, change: "Due soon", icon: FileText, color: "bg-yellow-50 text-yellow-600" },
   ];
 
@@ -243,11 +246,11 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
                 No children are linked to your account yet. Ask your school admin to link you as a parent.
               </p>
             )}
-            {myChildren.map((child) => (
+            {myChildren.map((child: any) => (
               <div key={child._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold border border-slate-200">
-                    {child.name.split(" ").map((n) => n[0]).join("")}
+                    {child.name.split(" ").map((n: string) => n[0]).join("")}
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-slate-800">{child.name}</span>
@@ -273,7 +276,7 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
             {(messages ?? []).length === 0 && (
               <p className="text-sm text-slate-500 font-medium">No recent activity yet.</p>
             )}
-            {(messages ?? []).slice(0, 5).map((m) => (
+            {(messages ?? []).slice(0, 5).map((m: any) => (
               <div key={m._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="bg-slate-50 p-1.5 rounded-full">
@@ -281,7 +284,7 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
                   </div>
                   <span className="text-sm font-medium text-slate-700 truncate">{m.content}</span>
                 </div>
-                <span className="text-xs text-slate-400 font-medium">{new Date(m._creationTime).toLocaleDateString()}</span>
+                <span className="text-xs text-slate-400 font-medium">{new Date(m.createdAt).toLocaleDateString()}</span>
               </div>
             ))}
           </CardContent>
@@ -316,13 +319,13 @@ function ChildrenSection({ onSelectChild }: { onSelectChild: (id: string) => voi
       )}
 
       <div className="grid gap-5 md:grid-cols-2">
-        {myChildren.map((child) => (
+        {myChildren.map((child: any) => (
           <Card key={child._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-lg font-bold border border-slate-200">
-                    {child.name.split(" ").map((n) => n[0]).join("")}
+                    {child.name.split(" ").map((n: string) => n[0]).join("")}
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-slate-800">{child.name}</h3>
@@ -368,20 +371,17 @@ function PerformanceSection({
   onSelectChild: (id: string) => void;
 }) {
   const myChildren = useMyChildren();
-  const selectedChild = myChildren?.find((c) => c._id === selectedChildId) ?? myChildren?.[0];
-  const grades = useQuery(
-    api.grades.getGradesByStudent,
-    selectedChild ? { studentId: selectedChild._id } : "skip",
-  );
+  const selectedChild = myChildren?.find((c: any) => c._id === selectedChildId) ?? myChildren?.[0];
+  const { data: grades, isLoading: gradesLoading } = useGradesByStudent(selectedChild?._id);
 
-  if (myChildren === undefined || grades === undefined) {
+  if (myChildren === undefined || gradesLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
   const average = (() => {
-    const scores = (grades ?? []).map((g) => (g.score / g.maxScore) * 100);
+    const scores = (grades ?? []).map((g: any) => (g.score / g.maxScore) * 100);
     if (scores.length === 0) return null;
-    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    return Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
   })();
 
   return (
@@ -420,7 +420,7 @@ function PerformanceSection({
                 </tr>
               </thead>
               <tbody>
-                {grades.map((g) => {
+                {grades.map((g: any) => {
                   const pct = Math.round((g.score / g.maxScore) * 100);
                   return (
                     <tr key={g._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
@@ -453,13 +453,10 @@ function AttendanceSection({
   onSelectChild: (id: string) => void;
 }) {
   const myChildren = useMyChildren();
-  const selectedChild = myChildren?.find((c) => c._id === selectedChildId) ?? myChildren?.[0];
-  const records = useQuery(
-    api.attendance.getAttendanceForStudent,
-    selectedChild ? { studentId: selectedChild._id } : "skip",
-  );
+  const selectedChild = myChildren?.find((c: any) => c._id === selectedChildId) ?? myChildren?.[0];
+  const { data: records, isLoading: recordsLoading } = useAttendanceByStudent(selectedChild?._id);
 
-  if (myChildren === undefined || records === undefined) {
+  if (myChildren === undefined || recordsLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
@@ -491,7 +488,7 @@ function AttendanceSection({
                 </tr>
               </thead>
               <tbody>
-                {records.map((r) => (
+                {records.map((r: any) => (
                   <tr key={r._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6 text-sm font-medium text-slate-700">{r.date}</td>
                     <td className="p-4 pr-6">
@@ -516,9 +513,9 @@ function AttendanceSection({
 }
 
 function TransportationSection() {
-  const records = useQuery(api.transportation.getMyTransportation);
+  const { data: records, isLoading } = useMyTransportation();
 
-  if (records === undefined) {
+  if (isLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
@@ -558,7 +555,7 @@ function TransportationSection() {
       )}
 
       <div className="grid gap-6">
-        {records.map((r) => (
+        {records.map((r: any) => (
           <Card key={r._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-6">
@@ -595,13 +592,10 @@ function MaterialsSection({
   onSelectChild: (id: string) => void;
 }) {
   const myChildren = useMyChildren();
-  const selectedChild = myChildren?.find((c) => c._id === selectedChildId) ?? myChildren?.[0];
-  const materials = useQuery(
-    api.materials.getStudyMaterialsForStudent,
-    selectedChild ? { studentId: selectedChild._id } : "skip",
-  );
+  const selectedChild = myChildren?.find((c: any) => c._id === selectedChildId) ?? myChildren?.[0];
+  const { data: materials, isLoading: materialsLoading } = useMaterialsForStudent(selectedChild?._id);
 
-  if (myChildren === undefined || materials === undefined) {
+  if (myChildren === undefined || materialsLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
@@ -623,7 +617,7 @@ function MaterialsSection({
       )}
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {materials.map((m) => (
+        {materials.map((m: any) => (
           <Card key={m._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
@@ -652,9 +646,9 @@ function MaterialsSection({
 }
 
 function AnnouncementsSection() {
-  const announcements = useQuery(api.announcements.getAnnouncements);
+  const { data: announcements, isLoading } = useAnnouncements();
 
-  if (announcements === undefined) {
+  if (isLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
@@ -674,7 +668,7 @@ function AnnouncementsSection() {
       )}
 
       <div className="space-y-4">
-        {announcements.map((a) => (
+        {announcements.map((a: any) => (
           <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -700,27 +694,27 @@ function AnnouncementsSection() {
 
 function MessagesSection() {
   const { user } = useAuth();
-  const messages = useQuery(api.messages.getMessages);
-  const markMessageRead = useMutation(api.messages.markMessageRead);
-  const sendMessage = useMutation(api.messages.sendMessage);
+  const { data: messages, isLoading, refetch } = useMessages();
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
 
-  if (messages === undefined) {
+  if (isLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
-  const incoming = messages.filter((m) => m.receiverId === user?._id).sort((a, b) => b._creationTime - a._creationTime);
-  const sent = messages.filter((m) => m.senderId === user?._id).sort((a, b) => b._creationTime - a._creationTime);
+  const incoming = messages.filter((m: any) => m.receiverId === user?.id).sort((a: any, b: any) => b.createdAt - a.createdAt);
+  const sent = messages.filter((m: any) => m.senderId === user?.id).sort((a: any, b: any) => b.createdAt - a.createdAt);
 
   const handleSend = async () => {
     if (!replyTo || !content.trim()) return;
     try {
-      await sendMessage({ receiverId: replyTo as Id<"users">, content });
+      await apiPost('/api/messages', { receiverId: replyTo, content: content.trim() });
+      toast.success("Message sent.");
       setContent("");
       setReplyTo(null);
+      await refetch();
     } catch (err) {
-      console.error("Failed to send message:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to send message.");
     }
   };
 
@@ -754,11 +748,11 @@ function MessagesSection() {
               </tr>
             </thead>
             <tbody>
-              {incoming.map((m) => (
+              {incoming.map((m: any) => (
                 <tr key={m._id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${!m.read ? "bg-blue-50/30" : ""}`}>
                   <td className="p-4 pl-6 text-sm font-semibold text-slate-800">School Member</td>
                   <td className="p-4 text-sm text-slate-600 max-w-md truncate">{m.content}</td>
-                  <td className="p-4 text-xs text-slate-400 font-medium">{new Date(m._creationTime).toLocaleString()}</td>
+                  <td className="p-4 text-xs text-slate-400 font-medium">{new Date(m.createdAt).toLocaleString()}</td>
                   <td className="p-4 pr-6 text-right">
                     <div className="flex gap-2 justify-end">
                       {!m.read && (
@@ -766,7 +760,14 @@ function MessagesSection() {
                           variant="ghost"
                           size="sm"
                           className="text-slate-500 hover:text-slate-900 font-semibold"
-                          onClick={() => markMessageRead({ id: m._id })}
+                          onClick={async () => {
+                            try {
+                              await apiPatch('/api/messages', { id: m._id });
+                              await refetch();
+                            } catch (_err) {
+                              toast.error("Failed to mark as read.");
+                            }
+                          }}
                         >
                           Mark read
                         </Button>
@@ -820,10 +821,10 @@ function MessagesSection() {
             <CardTitle className="text-base font-bold text-slate-800">Sent</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {sent.slice(0, 5).map((m) => (
+            {sent.slice(0, 5).map((m: any) => (
               <div key={m._id} className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
                 <p className="text-sm text-slate-700">{m.content}</p>
-                <p className="text-xs text-slate-400 mt-1">{new Date(m._creationTime).toLocaleString()}</p>
+                <p className="text-xs text-slate-400 mt-1">{new Date(m.createdAt).toLocaleString()}</p>
               </div>
             ))}
           </CardContent>
@@ -834,21 +835,20 @@ function MessagesSection() {
 }
 
 function PaymentsSection() {
-  const invoices = useQuery(api.payments.getInvoices);
-  const payments = useQuery(api.payments.getMyPayments);
-  const initializePayment = useAction(api.payments.initializePayment);
+  const { data: invoices, isLoading: invoicesLoading } = useInvoices();
+  const { data: payments, isLoading: paymentsLoading } = useMyPayments();
   const [payingInvoice, setPayingInvoice] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  if (invoices === undefined || payments === undefined) {
+  if (invoicesLoading || paymentsLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
   }
 
-  const handlePay = async (invoiceId: Id<"invoices">) => {
+  const handlePay = async (invoiceId: string) => {
     setPayingInvoice(invoiceId);
     setStatusMessage(null);
     try {
-      const result = await initializePayment({ invoiceId });
+      const result = await apiPost<{ authorizationUrl: string }>('/api/payments', { action: 'initialize', invoiceId });
       window.open(result.authorizationUrl, "_blank");
       setStatusMessage("Payment page opened in a new tab. After you complete payment, refresh this page to confirm.");
     } catch (err) {
@@ -885,7 +885,7 @@ function PaymentsSection() {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => {
+              {invoices.map((inv: any) => {
                 const outstanding = (inv.amountKobo - inv.paidAmountKobo) / 100;
                 return (
                   <tr key={inv._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
@@ -924,7 +924,7 @@ function PaymentsSection() {
             <CardTitle className="text-base font-bold text-slate-800">Payment History</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {payments.map((p) => (
+            {payments.map((p: any) => (
               <div key={p._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
                 <div>
                   <p className="text-sm font-bold text-slate-800">{p.description}</p>

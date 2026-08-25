@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { useAction, useMutation, useQuery, useConvex } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/hooks/use-auth";
+import { useStudents, useStudentsByClass } from "@/hooks/use-students";
+import { useClasses } from "@/hooks/use-classes";
+import { useAttendanceByDate } from "@/hooks/use-attendance";
+import { useGradesByStudent } from "@/hooks/use-grades";
+import { useAnnouncements } from "@/hooks/use-announcements";
+import { useMaterials } from "@/hooks/use-materials";
+import { useMessages, useUnreadCount } from "@/hooks/use-messages";
+import { useReportComments } from "@/hooks/use-report-comments";
+import { useTeachers } from "@/hooks/use-teachers";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +36,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
 
 function formatWhen(ts: number): string {
   const diff = Date.now() - ts;
@@ -59,21 +67,18 @@ function percentOf(score: number, max: number): number {
 
 export default function TeacherDashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState("overview");
-  const [selectedClassId, setSelectedClassId] = useState<Id<"classes"> | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
 
-  const messages = useQuery(api.messages.getMessages);
-  const unreadCount = (messages ?? []).filter(
-    (m) => !m.read && m.receiverId === user?._id,
-  ).length;
+  const { data: unreadCountData } = useUnreadCount();
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    router.push("/");
   };
 
-  const handleViewStudents = (classId: Id<"classes">) => {
+  const handleViewStudents = (classId: string) => {
     setSelectedClassId(classId);
     setActiveSection("attendance");
   };
@@ -154,9 +159,9 @@ export default function TeacherDashboard() {
             </div>
             <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full relative">
               <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
+              {unreadCountData > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white font-bold flex items-center justify-center">
-                  {unreadCount}
+                  {unreadCountData}
                 </span>
               )}
             </Button>
@@ -179,29 +184,28 @@ export default function TeacherDashboard() {
 }
 
 function OverviewSection() {
-  const classes = useQuery(api.classes.getClasses);
-  const students = useQuery(api.students.getStudents);
-  const messages = useQuery(api.messages.getMessages);
-  const announcements = useQuery(api.announcements.getAnnouncements);
+  const { data: classes } = useClasses();
+  const { data: students } = useStudents();
+  const { data: messages } = useMessages();
+  const { data: announcements } = useAnnouncements();
   const today = todayIso();
-  const attendance = useQuery(api.attendance.getAttendanceByDate, { date: today });
+  const { data: attendance } = useAttendanceByDate(today);
 
-  const convex = useConvex();
   const [avgPerformance, setAvgPerformance] = useState<string>("--");
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const studentIds = (students ?? []).map((s) => s._id);
+        const studentIds = (students ?? []).map((s: any) => s._id);
         const perStudent = await Promise.all(
-          studentIds.map((id) =>
-            convex.query(api.grades.getGradesByStudent, { studentId: id }),
+          studentIds.map((id: string) =>
+            apiGet<any[]>('/api/grades', { studentId: id }),
           ),
         );
         const all = perStudent.flat();
         if (all.length === 0) return;
         const pct =
-          all.reduce((acc, g) => acc + percentOf(g.score, g.maxScore), 0) / all.length;
+          all.reduce((acc: number, g: any) => acc + percentOf(g.score, g.maxScore), 0) / all.length;
         if (!cancelled) setAvgPerformance(`${pct.toFixed(1)}%`);
       } catch {
         if (!cancelled) setAvgPerformance("--");
@@ -211,12 +215,12 @@ function OverviewSection() {
     return () => {
       cancelled = true;
     };
-  }, [convex, students]);
+  }, [students]);
 
   const classCount = classes?.length ?? 0;
   const studentCount = students?.length ?? 0;
   const present = (attendance ?? []).filter(
-    (r) => r.status === "present" || r.status === "late",
+    (r: any) => r.status === "present" || r.status === "late",
   ).length;
   const attendanceRate =
     attendance && attendance.length > 0
@@ -232,13 +236,13 @@ function OverviewSection() {
 
   const activity = useMemo(() => {
     const items = [
-      ...(messages ?? []).map((m) => ({
+      ...(messages ?? []).map((m: any) => ({
         id: m._id,
         text: m.content,
         time: m.createdAt,
         icon: <MessageSquare className="w-3.5 h-3.5 text-yellow-500" />,
       })),
-      ...(announcements ?? []).map((a) => ({
+      ...(announcements ?? []).map((a: any) => ({
         id: a._id,
         text: a.title,
         time: a.createdAt,
@@ -281,7 +285,7 @@ function OverviewSection() {
             {(classes ?? []).length === 0 && (
               <p className="text-sm text-slate-500 font-medium p-3">No classes scheduled yet.</p>
             )}
-            {(classes ?? []).map((cls) => (
+            {(classes ?? []).map((cls: any) => (
               <div key={cls._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="bg-slate-50 p-1.5 rounded-full"><Calendar className="w-3.5 h-3.5 text-slate-500" /></div>
@@ -322,9 +326,9 @@ function OverviewSection() {
   );
 }
 
-function ClassesSection({ onViewStudents }: { onViewStudents: (classId: Id<"classes">) => void }) {
-  const classes = useQuery(api.classes.getClasses);
-  const students = useQuery(api.students.getStudents);
+function ClassesSection({ onViewStudents }: { onViewStudents: (classId: string) => void }) {
+  const { data: classes, isLoading: classesLoading } = useClasses();
+  const { data: students } = useStudents();
 
   return (
     <div>
@@ -335,11 +339,11 @@ function ClassesSection({ onViewStudents }: { onViewStudents: (classId: Id<"clas
         </div>
       </div>
 
-      {!classes && <div className="animate-pulse text-slate-500 font-medium">Loading classes…</div>}
+      {classesLoading && <div className="animate-pulse text-slate-500 font-medium">Loading classes…</div>}
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {(classes ?? []).map((cls) => {
-          const studentCount = (students ?? []).filter((s) => s.classId === cls._id).length;
+        {(classes ?? []).map((cls: any) => {
+          const studentCount = (students ?? []).filter((s: any) => s.classId === cls._id).length;
           return (
             <Card key={cls._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
               <CardContent className="p-6">
@@ -391,36 +395,31 @@ function ClassesSection({ onViewStudents }: { onViewStudents: (classId: Id<"clas
   );
 }
 
-function AttendanceSection({ initialClassId }: { initialClassId: Id<"classes"> | null }) {
-  const classes = useQuery(api.classes.getClasses);
-  const [classId, setClassId] = useState<Id<"classes"> | null>(initialClassId ?? null);
+function AttendanceSection({ initialClassId }: { initialClassId: string | null }) {
+  const { data: classes } = useClasses();
+  const [classId, setClassId] = useState<string | null>(initialClassId ?? null);
   const [date, setDate] = useState<string>(todayIso());
   const [markingId, setMarkingId] = useState<string | null>(null);
 
   const effectiveClassId = classId ?? (classes && classes.length > 0 ? classes[0]._id : null);
 
-  const students = useQuery(
-    api.students.getStudentsByClass,
-    effectiveClassId ? { classId: effectiveClassId } : "skip",
-  );
-  const attendance = useQuery(
-    api.attendance.getAttendanceByDate,
-    date ? { date } : "skip",
-  );
+  const { data: students } = useStudentsByClass(effectiveClassId ?? undefined);
+  const { data: attendance, refetch: refetchAttendance } = useAttendanceByDate(date || undefined);
 
   const statusByStudent = new Map<string, string>();
   for (const record of attendance ?? []) {
-    if (effectiveClassId && (students ?? []).some((s) => s._id === record.studentId)) {
+    if (effectiveClassId && (students ?? []).some((s: any) => s._id === record.studentId)) {
       statusByStudent.set(record.studentId, record.status);
     }
   }
 
-  const markAttendance = useMutation(api.attendance.markAttendance);
-
-  const handleMark = async (studentId: Id<"students">, status: "present" | "absent" | "late") => {
+  const handleMark = async (studentId: string, status: "present" | "absent" | "late") => {
     setMarkingId(studentId);
     try {
-      await markAttendance({ studentId, date, status });
+      await apiPost('/api/attendance', { studentId, date, status });
+      await refetchAttendance();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to mark attendance.");
     } finally {
       setMarkingId(null);
     }
@@ -443,10 +442,10 @@ function AttendanceSection({ initialClassId }: { initialClassId: Id<"classes"> |
               <select
                 className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
                 value={effectiveClassId ?? ""}
-                onChange={(e) => setClassId(e.target.value as Id<"classes">)}
+                onChange={(e) => setClassId(e.target.value)}
               >
                 <option value="" disabled>Select a class…</option>
-                {(classes ?? []).map((cls) => (
+                {(classes ?? []).map((cls: any) => (
                   <option key={cls._id} value={cls._id}>{cls.name} - {cls.gradeLevel}</option>
                 ))}
               </select>
@@ -476,14 +475,14 @@ function AttendanceSection({ initialClassId }: { initialClassId: Id<"classes"> |
               </tr>
             </thead>
             <tbody>
-              {(students ?? []).map((student) => {
+              {(students ?? []).map((student: any) => {
                 const status = statusByStudent.get(student._id);
                 return (
                   <tr key={student._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
-                          {student.name.split(" ").map(n => n[0]).join("")}
+                          {student.name.split(" ").map((n: string) => n[0]).join("")}
                         </div>
                         <span className="text-sm font-semibold text-slate-800">{student.name}</span>
                       </div>
@@ -554,14 +553,11 @@ function AttendanceSection({ initialClassId }: { initialClassId: Id<"classes"> |
 }
 
 function GradesSection() {
-  const classes = useQuery(api.classes.getClasses);
-  const [classId, setClassId] = useState<Id<"classes"> | null>(null);
-  const [studentId, setStudentId] = useState<Id<"students"> | null>(null);
+  const { data: classes } = useClasses();
+  const [classId, setClassId] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(null);
 
-  const students = useQuery(
-    api.students.getStudentsByClass,
-    classId ? { classId } : "skip",
-  );
+  const { data: students } = useStudentsByClass(classId ?? undefined);
 
   const [subject, setSubject] = useState("");
   const [score, setScore] = useState("");
@@ -571,11 +567,7 @@ function GradesSection() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const grades = useQuery(
-    api.grades.getGradesByStudent,
-    studentId ? { studentId } : "skip",
-  );
-  const addGrade = useMutation(api.grades.addGrade);
+  const { data: grades, refetch: refetchGrades } = useGradesByStudent(studentId ?? undefined);
 
   const handleAddGrade = async () => {
     if (!studentId) {
@@ -591,7 +583,7 @@ function GradesSection() {
     setSubmitting(true);
     setError(null);
     try {
-      await addGrade({
+      await apiPost('/api/grades', {
         studentId,
         subject: subject.trim(),
         score: parsedScore,
@@ -599,10 +591,12 @@ function GradesSection() {
         date,
         comments: comments.trim() || undefined,
       });
+      toast.success("Grade added successfully.");
       setSubject("");
       setScore("");
       setMaxScore("");
       setComments("");
+      await refetchGrades();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save that grade.");
     } finally {
@@ -629,12 +623,12 @@ function GradesSection() {
                 className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
                 value={classId ?? ""}
                 onChange={(e) => {
-                  setClassId(e.target.value as Id<"classes">);
+                  setClassId(e.target.value);
                   setStudentId(null);
                 }}
               >
                 <option value="" disabled>Select a class…</option>
-                {(classes ?? []).map((cls) => (
+                {(classes ?? []).map((cls: any) => (
                   <option key={cls._id} value={cls._id}>{cls.name}</option>
                 ))}
               </select>
@@ -644,10 +638,10 @@ function GradesSection() {
               <select
                 className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
                 value={studentId ?? ""}
-                onChange={(e) => setStudentId(e.target.value as Id<"students">)}
+                onChange={(e) => setStudentId(e.target.value)}
               >
                 <option value="" disabled>Select a student…</option>
-                {(students ?? []).map((s) => (
+                {(students ?? []).map((s: any) => (
                   <option key={s._id} value={s._id}>{s.name}</option>
                 ))}
               </select>
@@ -715,7 +709,7 @@ function GradesSection() {
       <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100">
         <CardHeader>
           <CardTitle className="text-base font-bold text-slate-800">
-            Grades for {students?.find((s) => s._id === studentId)?.name ?? "selected student"}
+            Grades for {students?.find((s: any) => s._id === studentId)?.name ?? "selected student"}
           </CardTitle>
         </CardHeader>
         <div className="overflow-x-auto">
@@ -731,12 +725,12 @@ function GradesSection() {
               </tr>
             </thead>
             <tbody>
-              {(grades ?? []).map((g) => (
+              {(grades ?? []).map((g: any) => (
                 <tr key={g._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 pl-6">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
-                        {g.subject.split(" ").map(n => n[0]).join("")}
+                        {g.subject.split(" ").map((n: string) => n[0]).join("")}
                       </div>
                       <span className="text-sm font-semibold text-slate-800">{g.subject}</span>
                     </div>
@@ -773,12 +767,12 @@ function GradesSection() {
 }
 
 function CommentsSection() {
-  const classes = useQuery(api.classes.getClasses);
-  const comments = useQuery(api.reportComments.getReportComments);
-  const students = useQuery(api.students.getStudents);
+  const { data: classes } = useClasses();
+  const { data: comments, refetch: refetchComments } = useReportComments();
+  const { data: students } = useStudents();
 
-  const [classId, setClassId] = useState<Id<"classes"> | null>(null);
-  const [studentId, setStudentId] = useState<Id<"students"> | null>(null);
+  const [classId, setClassId] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(null);
   const [subject, setSubject] = useState("");
   const [term, setTerm] = useState("");
   const [rawNotes, setRawNotes] = useState("");
@@ -786,23 +780,15 @@ function CommentsSection() {
   const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeDraftId, setActiveDraftId] = useState<Id<"reportComments"> | null>(null);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [draftText, setDraftText] = useState("");
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
 
-  const classStudents = useQuery(
-    api.students.getStudentsByClass,
-    classId ? { classId } : "skip",
-  );
-
-  const draftAction = useAction(api.reportComments.draftReportComment);
-  const updateDraft = useMutation(api.reportComments.updateDraft);
-  const approveReportComment = useMutation(api.reportComments.approveReportComment);
-  const deleteReportComment = useMutation(api.reportComments.deleteReportComment);
+  const { data: classStudents } = useStudentsByClass(classId ?? undefined);
 
   const studentName = (id: string) =>
-    (students ?? []).find((s) => s._id === id)?.name ?? "Unknown student";
+    (students ?? []).find((s: any) => s._id === id)?.name ?? "Unknown student";
 
   const handleDraft = async () => {
     if (!studentId || !subject.trim() || !term.trim() || !rawNotes.trim()) {
@@ -822,7 +808,8 @@ function CommentsSection() {
     setDrafting(true);
     setError(null);
     try {
-      const result = await draftAction({
+      const result = await apiPost<{ commentId: string; draft: string }>('/api/report-comments', {
+        action: 'draft',
         studentId,
         subject: subject.trim(),
         term: term.trim(),
@@ -843,8 +830,10 @@ function CommentsSection() {
     setSaving(true);
     setError(null);
     try {
-      await updateDraft({ id: activeDraftId, draft: draftText });
+      await apiPatch('/api/report-comments', { id: activeDraftId, draft: draftText });
       setActiveDraftId(null);
+      toast.success("Draft saved.");
+      await refetchComments();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save the draft.");
     } finally {
@@ -861,8 +850,10 @@ function CommentsSection() {
     setApproving(true);
     setError(null);
     try {
-      await approveReportComment({ id: activeDraftId, finalText: draftText });
+      await apiPost('/api/report-comments', { id: activeDraftId, action: 'approve', finalText: draftText });
       setActiveDraftId(null);
+      toast.success("Comment approved.");
+      await refetchComments();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't approve the comment.");
     } finally {
@@ -870,8 +861,14 @@ function CommentsSection() {
     }
   };
 
-  const handleDelete = async (id: Id<"reportComments">) => {
-    await deleteReportComment({ id });
+  const handleDelete = async (id: string) => {
+    try {
+      await apiDelete('/api/report-comments', { id });
+      toast.success("Comment deleted.");
+      await refetchComments();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't delete the comment.");
+    }
   };
 
   return (
@@ -893,12 +890,12 @@ function CommentsSection() {
                 className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
                 value={classId ?? ""}
                 onChange={(e) => {
-                  setClassId(e.target.value as Id<"classes">);
+                  setClassId(e.target.value);
                   setStudentId(null);
                 }}
               >
                 <option value="" disabled>Select a class…</option>
-                {(classes ?? []).map((cls) => (
+                {(classes ?? []).map((cls: any) => (
                   <option key={cls._id} value={cls._id}>{cls.name}</option>
                 ))}
               </select>
@@ -908,10 +905,10 @@ function CommentsSection() {
               <select
                 className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
                 value={studentId ?? ""}
-                onChange={(e) => setStudentId(e.target.value as Id<"students">)}
+                onChange={(e) => setStudentId(e.target.value)}
               >
                 <option value="" disabled>Select a student…</option>
-                {(classStudents ?? []).map((s) => (
+                {(classStudents ?? []).map((s: any) => (
                   <option key={s._id} value={s._id}>{s.name}</option>
                 ))}
               </select>
@@ -1008,7 +1005,7 @@ function CommentsSection() {
           {(comments ?? []).length === 0 && (
             <p className="text-sm text-slate-500 font-medium">No report comments yet.</p>
           )}
-          {(comments ?? []).map((c) => (
+          {(comments ?? []).map((c: any) => (
             <div key={c._id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1046,21 +1043,17 @@ function CommentsSection() {
 }
 
 function MaterialsSection() {
-  const materials = useQuery(api.materials.getStudyMaterials);
-  const classes = useQuery(api.classes.getClasses);
-  const deleteMaterial = useMutation(api.materials.deleteStudyMaterial);
+  const { data: materials, refetch: refetchMaterials } = useMaterials();
+  const { data: classes } = useClasses();
 
   const [showUpload, setShowUpload] = useState(false);
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [classId, setClassId] = useState<Id<"classes"> | null>(null);
+  const [classId, setClassId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const generateUploadUrl = useMutation(api.materials.generateUploadUrl);
-  const addMaterial = useMutation(api.materials.addStudyMaterial);
 
   const handleUpload = async () => {
     if (!file || !title.trim() || !subject.trim() || !classId) {
@@ -1070,31 +1063,32 @@ function MaterialsSection() {
     setUploading(true);
     setError(null);
     try {
-      const uploadUrl = await generateUploadUrl();
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch('/api/materials/upload', {
+        method: 'POST',
+        body: formData,
       });
-      if (!response.ok) {
+      if (!uploadRes.ok) {
         throw new Error("Upload failed. Please try again.");
       }
-      const { storageId } = (await response.json()) as { storageId: string };
-      const ext = file.name.split(".").pop()?.toUpperCase() || file.type || "FILE";
-      await addMaterial({
+      const { fileUrl, fileType } = await uploadRes.json();
+      await apiPost('/api/materials', {
         title: title.trim(),
         description: description.trim() || undefined,
         subject: subject.trim(),
         classId,
-        storageId: storageId as Id<"_storage">,
-        fileType: ext,
+        fileUrl,
+        fileType: fileType || file.name.split(".").pop()?.toUpperCase() || "FILE",
       });
+      toast.success("Material uploaded successfully.");
       setShowUpload(false);
       setTitle("");
       setSubject("");
       setDescription("");
       setClassId(null);
       setFile(null);
+      await refetchMaterials();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't upload that material.");
     } finally {
@@ -1142,13 +1136,13 @@ function MaterialsSection() {
               </div>
               <div>
                 <label className="text-sm font-bold text-slate-700 block mb-2">Class</label>
-<select
+                <select
                   className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
                   value={classId ?? ""}
-                  onChange={(e) => setClassId(e.target.value as Id<"classes">)}
+                  onChange={(e) => setClassId(e.target.value)}
                 >
                   <option value="" disabled>Select a class…</option>
-                  {(classes ?? []).map((cls) => (
+                  {(classes ?? []).map((cls: any) => (
                     <option key={cls._id} value={cls._id}>{cls.name}</option>
                   ))}
                 </select>
@@ -1185,7 +1179,7 @@ function MaterialsSection() {
       )}
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {(materials ?? []).map((material) => (
+        {(materials ?? []).map((material: any) => (
           <Card key={material._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
@@ -1196,7 +1190,7 @@ function MaterialsSection() {
                   <div>
                     <h3 className="text-base font-bold text-slate-800">{material.title}</h3>
                     <p className="text-[11px] text-slate-500 font-medium tracking-wide">
-                      {(classes ?? []).find((c) => c._id === material.classId)?.name ?? material.classId}
+                      {(classes ?? []).find((c: any) => c._id === material.classId)?.name ?? material.classId}
                     </p>
                   </div>
                 </div>
@@ -1228,7 +1222,15 @@ function MaterialsSection() {
                   variant="outline"
                   size="icon"
                   className="border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl"
-                  onClick={() => deleteMaterial({ id: material._id })}
+                  onClick={async () => {
+                    try {
+                      await apiDelete('/api/materials', { id: material._id });
+                      toast.success("Material deleted.");
+                      await refetchMaterials();
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Couldn't delete material.");
+                    }
+                  }}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -1242,8 +1244,7 @@ function MaterialsSection() {
 }
 
 function AnnouncementsSection() {
-  const announcements = useQuery(api.announcements.getAnnouncements);
-  const addAnnouncement = useMutation(api.announcements.addAnnouncement);
+  const { data: announcements, refetch } = useAnnouncements();
 
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState("");
@@ -1260,11 +1261,13 @@ function AnnouncementsSection() {
     setCreating(true);
     setError(null);
     try {
-      await addAnnouncement({ title: title.trim(), content: content.trim(), target });
+      await apiPost('/api/announcements', { title: title.trim(), content: content.trim(), target });
+      toast.success("Announcement published.");
       setShowCreate(false);
       setTitle("");
       setContent("");
       setTarget("all");
+      await refetch();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create that announcement.");
     } finally {
@@ -1347,7 +1350,7 @@ function AnnouncementsSection() {
             </CardContent>
           </Card>
         )}
-        {(announcements ?? []).map((a) => (
+        {(announcements ?? []).map((a: any) => (
           <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -1372,11 +1375,10 @@ function AnnouncementsSection() {
 }
 
 function MessagesSection() {
-  const messages = useQuery(api.messages.getMessages);
-  const students = useQuery(api.students.getStudents);
-  const teachers = useQuery(api.teachers.getTeachers);
+  const { data: messages, refetch } = useMessages();
+  const { data: students } = useStudents();
+  const { data: teachers } = useTeachers();
   const { user } = useAuth();
-  const markMessageRead = useMutation(api.messages.markMessageRead);
 
   const nameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -1386,13 +1388,18 @@ function MessagesSection() {
   }, [students, teachers]);
 
   const senderName = (senderId: string) => {
-    if (senderId === user?._id) return "You";
+    if (senderId === user?.id) return "You";
     return nameById.get(senderId) ?? "School Member";
   };
 
-  const handleOpen = async (id: Id<"messages">, read: boolean) => {
+  const handleOpen = async (id: string, read: boolean) => {
     if (!read) {
-      await markMessageRead({ id });
+      try {
+        await apiPatch('/api/messages', { id });
+        await refetch();
+      } catch (_err) {
+        toast.error("Failed to mark message as read.");
+      }
     }
   };
 
@@ -1415,7 +1422,7 @@ function MessagesSection() {
               </tr>
             </thead>
             <tbody>
-              {(messages ?? []).map((message) => (
+              {(messages ?? []).map((message: any) => (
                 <tr
                   key={message._id}
                   onClick={() => handleOpen(message._id, message.read)}

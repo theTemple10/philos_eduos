@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { apiPost } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useTenants, useTenantUsers } from "@/hooks/use-users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,8 @@ import {
   ShieldCheck,
   Loader2,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const NAV_ITEMS = [
   { id: "overview", label: "System Overview", icon: LayoutDashboard },
@@ -69,12 +69,12 @@ function roleBadgeClass(role?: string): string {
 
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState("overview");
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    router.push("/");
   };
 
   return (
@@ -181,8 +181,8 @@ export default function AdminDashboard() {
 }
 
 function OverviewSection() {
-  const tenants = useQuery(api.users.getTenants);
-  const users = useQuery(api.users.getAllUsers);
+  const { data: tenants, isLoading: tenantsLoading } = useTenants();
+  const { data: users, isLoading: usersLoading } = useTenantUsers();
 
   const stats = [
     {
@@ -213,7 +213,7 @@ function OverviewSection() {
           System Overview
         </h1>
         <p className="text-slate-500 font-medium text-lg">
-          Live platform counts from Convex.
+          Live platform counts.
         </p>
       </div>
 
@@ -253,13 +253,13 @@ function OverviewSection() {
           <div className="flex justify-between">
             <span className="text-slate-500 font-medium">Tenants</span>
             <span className="font-bold text-slate-800">
-              {tenants?.length ?? "…"}
+              {tenantsLoading ? "…" : tenants?.length ?? 0}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-500 font-medium">Users</span>
             <span className="font-bold text-slate-800">
-              {users?.length ?? "…"}
+              {usersLoading ? "…" : users?.length ?? 0}
             </span>
           </div>
           <div className="flex justify-between">
@@ -283,10 +283,10 @@ function OverviewSection() {
 }
 
 function TenantsSection() {
-  const tenants = useQuery(api.users.getTenants);
-  const users = useQuery(api.users.getAllUsers);
+  const { data: tenants, isLoading: tenantsLoading } = useTenants();
+  const { data: users } = useTenantUsers();
 
-  const userCount = (tenantId: Id<"tenants">) =>
+  const userCount = (tenantId: string) =>
     (users ?? []).filter((u) => u.tenantId === tenantId).length;
 
   return (
@@ -300,7 +300,7 @@ function TenantsSection() {
         </p>
       </div>
 
-      {!tenants && (
+      {tenantsLoading && (
         <div className="animate-pulse text-slate-500 font-medium">
           Loading tenants…
         </div>
@@ -326,9 +326,9 @@ function TenantsSection() {
               </tr>
             </thead>
             <tbody>
-              {(tenants ?? []).map((tenant) => (
+              {(tenants ?? []).map((tenant: any) => (
                 <tr
-                  key={tenant._id}
+                  key={tenant.id}
                   className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
                 >
                   <td className="p-4 pl-6">
@@ -336,7 +336,7 @@ function TenantsSection() {
                       <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
                         {tenant.name
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")
                           .slice(0, 2)}
                       </div>
@@ -354,7 +354,7 @@ function TenantsSection() {
                     {formatTs(tenant.createdAt)}
                   </td>
                   <td className="p-4 pr-6 text-right text-sm font-bold text-slate-700">
-                    {userCount(tenant._id)}
+                    {userCount(tenant.id)}
                   </td>
                 </tr>
               ))}
@@ -377,24 +377,24 @@ function TenantsSection() {
 }
 
 function UsersSection() {
-  const users = useQuery(api.users.getAllUsers);
-  const tenants = useQuery(api.users.getTenants);
-  const grantSuperAdmin = useMutation(api.users.grantSuperAdmin);
+  const { data: users, isLoading: usersLoading } = useTenantUsers();
+  const { data: tenants } = useTenants();
   const [grantingId, setGrantingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const tenantName = (tenantId?: Id<"tenants">) =>
-    (tenants ?? []).find((t) => t._id === tenantId)?.name ?? "—";
+  const tenantName = (tenantId?: string) =>
+    (tenants ?? []).find((t: any) => t.id === tenantId)?.name ?? "—";
 
-  const handleGrant = async (userId: Id<"users">) => {
+  const handleGrant = async (userId: string) => {
     setGrantingId(userId);
     setError(null);
     try {
-      await grantSuperAdmin({ userId });
+      await apiPost("/api/users", { action: "grantSuperAdmin", userId });
+      toast.success("Super admin granted");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Couldn't grant super admin.",
-      );
+      const msg = err instanceof Error ? err.message : "Couldn't grant super admin.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setGrantingId(null);
     }
@@ -415,7 +415,7 @@ function UsersSection() {
         <p className="text-sm text-red-600 font-medium mb-4">{error}</p>
       )}
 
-      {!users && (
+      {usersLoading && (
         <div className="animate-pulse text-slate-500 font-medium">
           Loading users…
         </div>
@@ -444,9 +444,9 @@ function UsersSection() {
               </tr>
             </thead>
             <tbody>
-              {(users ?? []).map((user) => (
+              {(users ?? []).map((user: any) => (
                 <tr
-                  key={user._id}
+                  key={user.id}
                   className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
                 >
                   <td className="p-4 pl-6">
@@ -454,7 +454,7 @@ function UsersSection() {
                       <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
                         {(user.name || "?")
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")
                           .slice(0, 2)}
                       </div>
@@ -481,11 +481,11 @@ function UsersSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={grantingId === user._id}
-                        onClick={() => handleGrant(user._id)}
+                        disabled={grantingId === user.id}
+                        onClick={() => handleGrant(user.id)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold"
                       >
-                        {grantingId === user._id ? (
+                        {grantingId === user.id ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <ShieldCheck className="w-3.5 h-3.5" />
@@ -515,11 +515,11 @@ function UsersSection() {
 }
 
 function AnalyticsSection() {
-  const tenants = useQuery(api.users.getTenants);
-  const users = useQuery(api.users.getAllUsers);
+  const { data: tenants, isLoading: tenantsLoading } = useTenants();
+  const { data: users, isLoading: usersLoading } = useTenantUsers();
 
   const superAdmins = (users ?? []).filter(
-    (u) => u.role === "super_admin",
+    (u: any) => u.role === "super_admin",
   ).length;
 
   return (
@@ -548,13 +548,13 @@ function AnalyticsSection() {
             <div className="flex justify-between">
               <span className="text-slate-500 font-medium">Tenants</span>
               <span className="font-bold text-slate-800">
-                {tenants?.length ?? "…"}
+                {tenantsLoading ? "…" : tenants?.length ?? 0}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500 font-medium">Users</span>
               <span className="font-bold text-slate-800">
-                {users?.length ?? "…"}
+                {usersLoading ? "…" : users?.length ?? 0}
               </span>
             </div>
             <div className="flex justify-between">

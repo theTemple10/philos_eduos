@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js >= 20
+- Node.js >= 22 (matches package.json)
 - A [Supabase](https://supabase.com) account (free tier works)
 - A [Vercel](https://vercel.com) account (free tier works)
 - A [Resend](https://resend.com) account (free tier: 100 emails/day)
@@ -22,13 +22,15 @@ Optional: [Paystack](https://paystack.com) for payments, [Anthropic](https://con
 ## 2. Set Up the Database
 
 ```bash
-# Copy env vars
+# Copy env vars (Drizzle Kit and Next.js both load .env.local)
 cp .env.example .env.local
 
 # Fill in .env.local with your Supabase credentials:
 #   NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 #   DATABASE_URL=postgresql://postgres.xxxx:xxxx@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+# Use a Supabase pooler URI. The app disables prepared statements for
+# compatibility with transaction pooler connections.
 
 # Push the Drizzle schema to your Supabase Postgres database
 npm run db:push
@@ -36,12 +38,9 @@ npm run db:push
 
 This creates all 19 tables (users, tenants, students, teachers, classes, attendance, grades, etc.).
 
-## 3. Set Up Resend (Email OTP)
+## 3. Configure OTP Email
 
-1. Sign up at [resend.com](https://resend.com) and create an API key.
-2. Add `RESEND_API_KEY=re_xxxxx` to `.env.local`.
-
-Note: Supabase Auth handles sending OTP codes natively. Resend is used for transactional emails (announcements, notifications). If you just want to test, Supabase's built-in email works out of the box.
+The current sign-in flow uses Supabase Auth email OTP. Configure the Email provider and SMTP settings in Supabase for production delivery. The repository contains a Resend helper, but it is not currently called by the sign-in flow; `RESEND_API_KEY` is not required to sign in.
 
 ## 4. Deploy to Vercel
 
@@ -56,7 +55,7 @@ Note: Supabase Auth handles sending OTP codes natively. Resend is used for trans
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` |
 | `DATABASE_URL` | `postgresql://postgres.xxxx:...` |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (from Supabase Settings → API → service_role) |
-| `RESEND_API_KEY` | `re_xxxxx` |
+| `RESEND_API_KEY` | Optional; currently unused by the sign-in flow |
 | `SITE_URL` | `https://your-app.vercel.app` |
 | `PAYSTACK_SECRET_KEY` | `sk_test_xxxxx` (if using payments) |
 | `ANTHROPIC_API_KEY` | `sk-ant-...` (if using AI comments) |
@@ -78,11 +77,9 @@ The `super_admin` role cannot be granted through the app. Set it manually:
 
 You can now manage tenants and users from the Admin Dashboard.
 
-## 7. Paystack Webhook (Optional)
+## 7. Paystack (Optional)
 
-If using payments:
-1. Set your Paystack webhook URL to `https://your-app.vercel.app/api/payments`
-2. Set `PAYSTACK_SECRET_KEY` in both `.env.local` and Vercel env vars.
+Set `PAYSTACK_SECRET_KEY` in both `.env.local` and Vercel env vars to enable payment initialization and verification from the parent dashboard. The current API route does not implement Paystack's signed webhook protocol, so do not configure `/api/payments` as a Paystack webhook endpoint yet.
 
 ---
 

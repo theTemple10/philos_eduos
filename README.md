@@ -10,7 +10,7 @@ Multi-tenant school management platform for Nigerian educational institutions.
 - **Database**: PostgreSQL via Supabase
 - **ORM**: Drizzle ORM
 - **Auth**: Supabase Auth (email OTP)
-- **Email**: Resend (100 emails/day free tier)
+- **Email**: Supabase Auth email OTP (the Resend helper is not currently wired into sign-in)
 - **Payments**: Paystack
 - **AI**: Anthropic Claude (report comments)
 - **Deployment**: Vercel + Supabase
@@ -79,7 +79,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
 | `DATABASE_URL` | Yes | PostgreSQL connection string (Supabase pooler) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (API routes) |
-| `RESEND_API_KEY` | Yes | Resend API key for email OTP |
+| `RESEND_API_KEY` | No | Resend helper key; current OTP flow sends through Supabase Auth |
 | `PAYSTACK_SECRET_KEY` | No | Paystack secret key for payments |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key for AI report comments |
 | `SITE_URL` | Yes | Public site URL (for Paystack redirects) |

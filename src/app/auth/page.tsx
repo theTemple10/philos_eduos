@@ -37,10 +37,15 @@ function Auth() {
   const redirect = resolveRedirectAfterAuth(
     searchParams.get("returnTo"),
   );
+  const callbackError = searchParams.get("error");
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    callbackError
+      ? "We couldn't complete sign-in. Please request a new verification code and try again."
+      : null,
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

@@ -8,9 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import logo from "@/assets/logo.svg";
 import { useAuth } from "@/hooks/use-auth";
 import { Home, LogOut } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export function LogoDropdown() {
@@ -34,8 +34,8 @@ export function LogoDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-10 w-10">
-          <img
-            src={logo}
+          <Image
+            src="/logo.svg"
             alt="Logo"
             width={32}
             height={32}

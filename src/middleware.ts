@@ -1,37 +1,31 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const protectedRoutes = ["/dashboard"];
-const publicRoutes = ["/", "/auth"];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route),
+    pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  const isPublicRoute =
-    publicRoutes.includes(pathname) || pathname.startsWith("/api/auth");
+  const { response, user } = await updateSession(request);
 
-  const supabaseResponse = await updateSession(request);
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone();
+    const returnTo = `${pathname}${request.nextUrl.search}`;
+    url.pathname = "/auth";
+    url.search = "";
+    url.searchParams.set("returnTo", returnTo);
 
-  if (isProtectedRoute) {
-    const cookieStore = request.cookies;
-    const hasSession = cookieStore.get("sb-access-token");
-
-    if (!hasSession) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth";
-      return Response.redirect(url);
-    }
+    const redirectResponse = NextResponse.redirect(url);
+    response.cookies.getAll().forEach(({ name, value, ...options }) => {
+      redirectResponse.cookies.set(name, value, options);
+    });
+    return redirectResponse;
   }
 
-  if (isPublicRoute) {
-    return supabaseResponse;
-  }
-
-  return supabaseResponse;
+  return response;
 }
 
 export const config = {

@@ -27,7 +27,7 @@ This is a prioritized working list from the initial code review. Items marked **
 
 ## Fixed on this branch
 
-- **SVG module resolution (#2):** The logo dropdown now loads the shared logo from `public/logo.svg` through `next/image`. `npx tsc --noEmit` passes. The production build still needs verification after repairing this workspace's missing optional `@tailwindcss/oxide-linux-x64-gnu` native binding; the package is present in `package-lock.json` but absent from `node_modules`.
+- **Build and SVG module resolution (#2):** The logo dropdown now loads the shared logo from `public/logo.svg` through `next/image`. TypeScript, ESLint, and the production build pass. This workspace's pre-existing `node_modules` was missing the lockfile-declared optional `@tailwindcss/oxide-linux-x64-gnu` binding; restoring that binding locally allowed the build to complete without changing package manifests.
 - **ESLint generated-file scope (#9):** ESLint now globally ignores `.next`, output, build, coverage, and generated Next.js type files. `npm run lint` passes with `.next` already present.
 - **Drizzle CLI environment loading:** drizzle.config.ts now loads Next.js environment files, including .env.local, and gives a direct setup error when DATABASE_URL is absent. The reported command ran Drizzle Kit without that variable in its process environment; the local file contains a non-empty DATABASE_URL, so this addresses the observed mismatch.
 - **Runtime database setup error:** src/lib/db/index.ts now reports a clear message instead of passing an undefined URL into postgres-js.

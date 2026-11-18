@@ -1,3 +1,4 @@
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users, tenants } from "@/lib/db/schema";
@@ -31,7 +32,45 @@ function notFound(message: string) {
   return NextResponse.json({ error: message }, { status: 404 });
 }
 
-/** Resolve the Supabase session and look up the user row. */
+/**
+ * Return the app profile (`public.users`) for a Supabase Auth user, creating
+ * it on first use. Supabase only creates the `auth.users` row, so without this
+ * a newly signed-in person has no profile and every API call fails.
+ *
+ * The insert is idempotent (`ON CONFLICT DO NOTHING`), so concurrent first
+ * requests are safe. New profiles have no role or school; those come from
+ * onboarding or an invite.
+ */
+export async function ensureUserProfile(supaUser: SupabaseUser) {
+  const existing = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, supaUser.id))
+    .limit(1);
+  if (existing[0]) return existing[0];
+
+  const metadataName = supaUser.user_metadata?.full_name ?? supaUser.user_metadata?.name;
+  await db
+    .insert(users)
+    .values({
+      id: supaUser.id,
+      email: supaUser.email?.toLowerCase() ?? null,
+      name: typeof metadataName === "string" ? metadataName : null,
+      emailVerificationTime: supaUser.email_confirmed_at
+        ? Date.parse(supaUser.email_confirmed_at)
+        : null,
+    })
+    .onConflictDoNothing({ target: users.id });
+
+  const created = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, supaUser.id))
+    .limit(1);
+  return created[0] ?? null;
+}
+
+/** Resolve the Supabase session and load (or create) the user's profile. */
 export async function requireAuth(): Promise<
   { ok: true; data: AuthedContext } | { ok: false; response: NextResponse }
 > {
@@ -40,12 +79,7 @@ export async function requireAuth(): Promise<
   if (error || !supaUser) {
     return { ok: false, response: unauthorized() };
   }
-  const rows = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, supaUser.id))
-    .limit(1);
-  const user = rows[0];
+  const user = await ensureUserProfile(supaUser);
   if (!user) {
     return { ok: false, response: unauthorized("Your account could not be found.") };
   }

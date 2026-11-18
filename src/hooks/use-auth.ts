@@ -16,12 +16,19 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  // Set when a Supabase session exists but the profile couldn't be loaded.
+  // Callers must not treat this as "signed out", or /auth and /dashboard
+  // redirect to each other forever.
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   const fetchUser = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
+    let hasSession = false;
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      hasSession = Boolean(session);
       if (!session) {
         setIsAuthenticated(false);
         setUser(null);
@@ -30,9 +37,12 @@ export function useAuth() {
       const profile = await apiGet<User>('/api/users');
       setUser(profile);
       setIsAuthenticated(true);
-    } catch {
-      setIsAuthenticated(false);
+    } catch (err) {
       setUser(null);
+      setIsAuthenticated(hasSession);
+      if (hasSession) {
+        setError(err instanceof Error ? err.message : 'Could not load your account.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -58,5 +68,5 @@ export function useAuth() {
     setIsAuthenticated(false);
   };
 
-  return { isLoading, isAuthenticated, user, signIn, signOut };
+  return { isLoading, isAuthenticated, user, error, refetch: fetchUser, signIn, signOut };
 }

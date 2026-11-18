@@ -7,21 +7,13 @@ import {
   requireAdmin,
   requireSuperAdmin,
 } from "@/lib/api/auth";
-import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const supabase = await createClient();
-    const { data: { user: supaUser }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !supaUser) {
-      return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
-    }
-    const rows = await db.select().from(users).where(eq(users.id, supaUser.id)).limit(1);
-    const user = rows[0];
-    if (!user) {
-      return NextResponse.json({ error: "Your account could not be found." }, { status: 401 });
-    }
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
+    const { user } = auth.data;
 
     if (searchParams.get("all") === "true") {
       if (user.role !== "super_admin") {

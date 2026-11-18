@@ -38,9 +38,42 @@ npm run db:push
 
 This creates all 19 tables (users, tenants, students, teachers, classes, attendance, grades, etc.).
 
-## 3. Configure OTP Email
+## 3. Configure Sign-in Email
 
-The current sign-in flow uses Supabase Auth email OTP. Configure the Email provider and SMTP settings in Supabase for production delivery. The repository contains a Resend helper, but it is not currently called by the sign-in flow; `RESEND_API_KEY` is not required to sign in.
+Sign-in is passwordless. `/auth` calls Supabase `signInWithOtp` with
+`emailRedirectTo` set to `/api/auth/callback` on the current site.
+
+**With Supabase's built-in mailer (no custom SMTP):**
+- The email contains a **link** only. The link completes sign-in when opened
+  **in the same browser** that requested it (PKCE).
+- Supabase's built-in mailer only delivers reliably to members of your Supabase
+  organisation and is limited to a few emails per hour. That's fine for testing,
+  but not for real users.
+- Email templates can't be edited until custom SMTP is configured.
+
+**With custom SMTP (required before inviting real users, see issue #14):**
+
+1. Supabase → Authentication → **Emails → SMTP Settings** → enable custom SMTP.
+   - *Interim (no domain yet):* a dedicated Gmail account with 2-Step
+     Verification and an **App password**. Host `smtp.gmail.com`, port `465`,
+     username = the Gmail address, password = the app password, sender = the
+     same address. Suitable for pilot volumes (~500 emails/day).
+   - *With a domain:* Resend (`smtp.resend.com`, port `465`, user `resend`,
+     password = API key) after verifying the domain's SPF/DKIM records.
+2. Raise **Rate Limits → emails per hour** to fit your expected sign-ins.
+3. Authentication → **Emails → Templates**. Use this body for **Magic Link**
+   (and adapt it for **Confirm signup**, using `type=signup`):
+
+   ```html
+   <h2>Sign in to Philos EduOS</h2>
+   <p>Your sign-in code is: <strong>{{ .Token }}</strong></p>
+   <p>Or open this link on any device:</p>
+   <p><a href="{{ .SiteURL }}/api/auth/callback?token_hash={{ .TokenHash }}&type=email">Sign in</a></p>
+   <p>If you didn't request this, you can ignore this email.</p>
+   ```
+
+   The `token_hash` link works across devices, and the code can be typed into
+   the sign-in page.
 
 ## 4. Deploy to Vercel
 
@@ -64,18 +97,35 @@ The current sign-in flow uses Supabase Auth email OTP. Configure the Email provi
 
 ## 5. Configure Supabase Auth Redirects
 
-In your Supabase dashboard → Authentication → URL Configuration:
-- **Site URL**: `https://your-app.vercel.app`
-- **Redirect URLs**: Add `https://your-app.vercel.app/auth/callback`
+In your Supabase dashboard → Authentication → **URL Configuration**:
+- **Site URL**: `https://your-app.vercel.app` (never leave it as `http://localhost:3000`
+  in production, because emails fall back to it).
+- **Redirect URLs**: add
+  - `https://your-app.vercel.app/**`
+  - `http://localhost:3000/**` (local development)
+  - `https://*-<your-vercel-team>.vercel.app/**` if you test sign-in on preview deployments
+
+The app sends links to `/api/auth/callback`. If a redirect isn't on the allow
+list, Supabase sends the user to the Site URL instead, and middleware forwards
+`/?code=…` to the callback as a safety net.
 
 ## 6. Bootstrap the First Admin
 
-The `super_admin` role cannot be granted through the app. Set it manually:
+The `super_admin` role cannot be granted through the app.
 
-1. After signing up, go to the Supabase dashboard → Table Editor → `users` table.
-2. Find your user row and set `role` to `super_admin`.
+1. Sign in once with the platform owner's email. The app creates the profile
+   row in `public.users` on first sign-in.
+2. In Supabase → **SQL Editor**, run:
 
-You can now manage tenants and users from the Admin Dashboard.
+   ```sql
+   update public.users set role = 'super_admin'
+   where email = lower('owner@example.com');
+   ```
+
+3. Reload `/dashboard`.
+
+(Planned in RFC #15: a dedicated platform console at `/admin/login` and a
+script for this step.)
 
 ## 7. Paystack (Optional)
 
@@ -105,6 +155,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Troubleshooting
 
 - **Build fails with Supabase errors**: Ensure `.env.local` exists with valid credentials. The app needs env vars at build time for type checking.
-- **OTP emails not arriving**: Check Supabase Auth → Email provider is enabled. For production, configure a custom SMTP provider in Supabase.
+- **Sign-in email not arriving**: Supabase's built-in mailer only delivers to organisation members and is rate-limited. Configure custom SMTP (section 3).
+- **Sign-in link opens `localhost`**: the Supabase **Site URL** is still the default. Set it as in section 5, then request a new link (old emails keep the old URL).
+- **Link says it expired, or lands back on `/auth`**: links are single-use and short-lived, and with the default template they must be opened in the browser that requested them. Request a new one.
 - **Database connection errors**: Use the pooler URL (port 6543), not the direct connection (port 5432). The pooler is designed for serverless environments.
 - **`npm run db:push` fails**: Verify `DATABASE_URL` uses the correct password and pooler endpoint.

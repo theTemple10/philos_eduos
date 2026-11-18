@@ -43,7 +43,10 @@ export default function Onboarding() {
     setError(null);
     const formData = new FormData(event.currentTarget);
     try {
-      await apiPost("/api/tenants", {
+      // School creation is the `createTenant` action on /api/users;
+      // /api/tenants is read-only (super-admin listing).
+      await apiPost("/api/users", {
+        action: "createTenant",
         name: String(formData.get("name") ?? ""),
         curriculum: String(
           formData.get("curriculum") ?? "waec_neco",

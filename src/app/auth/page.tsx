@@ -30,6 +30,22 @@ function resolveRedirectAfterAuth(
   return fallback;
 }
 
+/** Messages for the `error` codes set by /api/auth/callback. */
+const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
+  link_expired:
+    "That sign-in link has expired or was already used. Enter your email to get a new one.",
+  auth_callback_failed:
+    "We couldn't complete sign-in from that link. Request a new one and open it in this browser.",
+};
+
+function describeSendError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (/rate limit/i.test(message)) {
+    return "Too many sign-in emails were requested. Please wait a few minutes and try again.";
+  }
+  return message || "We couldn't send your sign-in email. Please try again.";
+}
+
 function Auth() {
   const supabase = createClient();
   const router = useRouter();
@@ -43,7 +59,8 @@ function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(
     callbackError
-      ? "We couldn't complete sign-in. Please request a new verification code and try again."
+      ? (CALLBACK_ERROR_MESSAGES[callbackError] ??
+          CALLBACK_ERROR_MESSAGES.auth_callback_failed)
       : null,
   );
 
@@ -62,17 +79,21 @@ function Auth() {
     try {
       const formData = new FormData(event.currentTarget);
       const email = formData.get("email") as string;
-      const { error: otpError } = await supabase.auth.signInWithOtp({ email });
+      // The default Supabase email contains a link (not a code). Point that
+      // link at our callback on *this* deployment, carrying the return path,
+      // so it works without editing email templates (which needs custom SMTP).
+      const callbackUrl = new URL("/api/auth/callback", window.location.origin);
+      callbackUrl.searchParams.set("next", redirect);
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: callbackUrl.toString() },
+      });
       if (otpError) throw otpError;
       setStep({ email });
       setIsLoading(false);
     } catch (error) {
       console.error("Email sign-in error:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to send verification code. Please try again.",
-      );
+      setError(describeSendError(error));
       setIsLoading(false);
     }
   };
@@ -169,9 +190,13 @@ function Auth() {
                 </div>
                 <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight">Check Your Email</CardTitle>
                 <CardDescription className="text-slate-500 mt-1 font-medium">
-                  We&apos;ve sent a secure verification code to<br />
+                  We&apos;ve sent a sign-in link to<br />
                   <span className="font-semibold text-slate-900">{typeof step === "string" ? "" : step.email}</span>
                 </CardDescription>
+                <p className="text-sm text-slate-500 mt-3">
+                  Open the link <span className="font-semibold text-slate-700">in this browser</span> to
+                  continue. If your email shows a 6-digit code instead, enter it below.
+                </p>
               </CardHeader>
               <form onSubmit={handleOtpSubmit}>
                 <CardContent className="px-8 pb-4">

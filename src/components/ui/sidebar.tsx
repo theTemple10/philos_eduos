@@ -1,6 +1,7 @@
-import { LayoutDashboard, Users, BookOpen, Settings, ShieldCheck, GraduationCap, Bell, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, Settings, GraduationCap, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export type DashboardView = "overview" | "students" | "teachers" | "classes" | "grades" | "attendance" | "announcements" | "settings";
 
@@ -32,10 +33,7 @@ export function Sidebar({ role, currentView, onNavigate }: SidebarProps) {
       collapsed ? "w-20" : "w-64"
     )}>
       <div className="flex items-center gap-3 px-6 h-16 border-b border-slate-800">
-        <div className="bg-blue-600 p-2 rounded-lg shrink-0">
-          <ShieldCheck className="w-5 h-5 text-white" />
-        </div>
-        {!collapsed && <span className="font-bold text-lg tracking-tight">Philos <span className="text-yellow-500">EduOS</span></span>}
+        <BrandLogo size="sm" tone="dark" markOnly={collapsed} />
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

@@ -16,10 +16,10 @@ import {
   Building2,
   Ticket,
   Loader2,
-  ShieldCheck,
   ArrowRight,
   CheckCircle2,
 } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 
 const CURRICULUM_OPTIONS = [
@@ -91,14 +91,7 @@ export default function Onboarding() {
     <div className="min-h-screen bg-slate-50/80 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2.5 mb-6">
-            <div className="bg-blue-600 text-white p-2 rounded-xl shadow-sm shadow-blue-600/20">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <span className="font-bold text-2xl tracking-tight text-slate-900">
-              Philos <span className="text-yellow-500">EduOS</span>
-            </span>
-          </div>
+          <BrandLogo size="lg" className="mb-6" />
           <h1 className="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">
             Welcome{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
           </h1>

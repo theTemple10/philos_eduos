@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { BrandMark } from "@/components/BrandLogo";
 
 const NAV_ITEMS = [
   { id: "overview", label: "System Overview", icon: LayoutDashboard },
@@ -82,11 +83,9 @@ export default function AdminDashboard() {
       <aside className="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-xl border-r border-slate-100/50 z-50 flex flex-col">
         <div className="p-6 border-b border-slate-100/50">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 text-white p-2 rounded-xl shadow-sm shadow-blue-600/20">
-              <Building2 className="w-5 h-5" />
-            </div>
+            <BrandMark className="h-9 w-9" />
             <div>
-              <h1 className="font-bold text-lg tracking-tight text-slate-900">
+              <h1 className="font-extrabold text-lg tracking-[-0.02em] text-slate-900">
                 Philos <span className="text-yellow-500">EduOS</span>
               </h1>
               <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest">

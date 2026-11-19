@@ -124,3 +124,10 @@
     cursor: pointer;
   }
 }
+
+/* Brand typeface (#22): Plus Jakarta Sans, loaded by next/font in
+   src/app/layout.tsx as --font-jakarta. Kept out of the template blocks above. */
+@theme inline {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+}

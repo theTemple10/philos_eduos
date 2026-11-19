@@ -16,9 +16,10 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowRight, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BrandLogo, BrandMark } from "@/components/BrandLogo";
 
 function resolveRedirectAfterAuth(
   returnTo: string | null,
@@ -123,11 +124,10 @@ function Auth() {
     <div className="min-h-screen flex flex-col bg-slate-50/50">
       {/* Nav */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100/50 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center gap-2.5 cursor-pointer" onClick={() => router.push("/")}>
-          <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm shadow-blue-600/20">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <span className="font-bold text-xl tracking-tight text-slate-900">Philos <span className="text-yellow-500">EduOS</span></span>
+        <div className="max-w-7xl mx-auto">
+          <button type="button" onClick={() => router.push("/")} aria-label="Philos EduOS home">
+            <BrandLogo size="md" />
+          </button>
         </div>
       </nav>
 
@@ -138,9 +138,7 @@ function Auth() {
             <>
               <CardHeader className="text-center pt-8 pb-4">
                 <div className="flex justify-center mb-4">
-                  <div className="bg-slate-50 text-slate-700 p-3 rounded-2xl border border-slate-100">
-                    <ShieldCheck className="w-8 h-8" />
-                  </div>
+                  <BrandMark className="h-14 w-14" />
                 </div>
                 <CardTitle className="text-2xl font-bold text-slate-900 tracking-tight">Welcome to Philos EduOS</CardTitle>
                 <CardDescription className="text-slate-500 mt-1 font-medium">

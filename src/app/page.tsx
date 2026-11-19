@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BookOpen, GraduationCap, ShieldCheck, ArrowRight, CheckCircle2, Users, Calendar, LineChart, Wallet, MessageSquare, Sparkles } from "lucide-react";
+import { BookOpen, GraduationCap, ArrowRight, CheckCircle2, Users, Calendar, LineChart, Wallet, MessageSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function Landing() {
   return (
@@ -11,12 +12,7 @@ export default function Landing() {
       <nav className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 border-b border-slate-100/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2.5">
-              <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm shadow-blue-600/20">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <span className="font-bold text-xl tracking-tight text-slate-900">Philos <span className="text-yellow-500">EduOS</span></span>
-            </div>
+            <BrandLogo size="md" />
             
             <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-500">
               <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
@@ -176,10 +172,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="bg-slate-950 text-slate-400 py-12 text-sm border-t border-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-white" />
-            <span className="font-bold text-white">Philos EduOS</span>
-          </div>
+          <BrandLogo size="sm" tone="dark" />
           <p>&copy; {new Date().getFullYear()} Philos EduOS. All rights reserved.</p>
         </div>
       </footer>

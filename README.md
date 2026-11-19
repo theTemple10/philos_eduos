@@ -69,6 +69,21 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run db:migrate` | Run migrations |
 | `npm run db:studio` | Open Drizzle Studio |
 
+## Dependency Overrides
+
+`package.json` contains `overrides` that patch security advisories in
+transitive dependencies (issue #20). Remove an override only when the parent
+package ships the fix itself; then check `npm audit` still reports no issues.
+
+| Override | Why |
+|---|---|
+| `next` → `postcss ^8.5.26` | Next 15 pins `postcss@8.4.31` (XSS and source-map file-disclosure advisories). The build output is byte-identical with the patched version. Drop when upgrading to a Next release that bundles a fixed PostCSS. |
+| `minimatch@3` → `brace-expansion 1.1.21` | ESLint's `minimatch@3` pulls `brace-expansion` ≤1.1.20 (CPU denial-of-service advisories). Development only. |
+
+Known and accepted: `drizzle-kit` (development only) bundles an old `esbuild`
+with a dev-server advisory. drizzle-kit never starts that server, and npm's
+suggested "fix" is a downgrade to an older drizzle-kit.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env.local` and fill in:

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Caveat, Plus_Jakarta_Sans } from "next/font/google";
 import Providers from "./providers";
 import "./globals.css";
 
@@ -13,8 +13,17 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
 });
 
+// Handwriting accent (SIL OFL), used sparingly on the landing page for
+// teacher-style notes (e.g. a report-card comment). Never for UI text.
+const caveat = Caveat({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["500", "700"],
+  variable: "--font-caveat",
+});
+
 const description =
-  "Multi-tenant school management platform for Nigerian educational institutions";
+  "Attendance, results, report comments, fees and parent communication in one place, built for Nigerian schools.";
 
 export const metadata: Metadata = {
   title: "Philos EduOS",
@@ -43,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
+    <html lang="en" className={`${jakarta.variable} ${caveat.variable}`} suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
       </body>

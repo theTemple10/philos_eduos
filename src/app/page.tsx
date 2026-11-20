@@ -1,181 +1,317 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { BookOpen, GraduationCap, ArrowRight, CheckCircle2, Users, Calendar, LineChart, Wallet, MessageSquare, Sparkles } from "lucide-react";
+import { MotionConfig, motion } from "framer-motion";
+import {
+  ArrowRight,
+  Eye,
+  GraduationCap,
+  HeartHandshake,
+  Lock,
+  Palette,
+  School,
+  Smartphone,
+  Sparkles,
+  Timer,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ReportCard } from "@/components/landing/ReportCard";
+import { Reveal } from "@/components/landing/Reveal";
+import { TermTimeline } from "@/components/landing/TermTimeline";
+
+/*
+ * Public landing page (issue #26).
+ *
+ * Copy rules:
+ * - Lead with what changes for the school, not with the technology.
+ * - Only describe what works today. Anything else carries "Coming soon".
+ * - No invented customers, numbers or testimonials.
+ */
+
+type Outcome = { icon: LucideIcon; who: string; title: string; desc: string };
+
+const OUTCOMES: Outcome[] = [
+  {
+    icon: Eye,
+    who: "Proprietors & principals",
+    title: "See the whole school without chasing anyone",
+    desc: "Attendance, results and fees in one view, class by class, updated as your teachers work. Spot problems in week three, not at the end of term.",
+  },
+  {
+    icon: Timer,
+    who: "Teachers",
+    title: "Evenings for lessons, not paperwork",
+    desc: "Mark the register in a few taps, enter scores once, and start every report comment from a thoughtful first draft.",
+  },
+  {
+    icon: HeartHandshake,
+    who: "Parents",
+    title: "No surprises on report day",
+    desc: "Parents see attendance and results as they are recorded, and hear from the school directly. Engaged parents make for better-supported children.",
+  },
+  {
+    icon: GraduationCap,
+    who: "Students",
+    title: "Feedback while there's time to improve",
+    desc: "Results and teacher comments through the term, plus the materials their teachers share, so progress isn't left to the last week.",
+  },
+];
+
+type Reason = { icon: LucideIcon; title: string; desc: string; soon?: boolean };
+
+const REASONS: Reason[] = [
+  {
+    icon: School,
+    title: "Made for Nigerian schools",
+    desc: "Built around the three-term session, continuous assessment, exams and Naira billing. Works for WAEC/NECO, Cambridge, IB and American curricula.",
+  },
+  {
+    icon: Lock,
+    title: "Everyone sees only what they should",
+    desc: "Each school's records are kept apart from every other school's. Inside a school, access follows each person's role.",
+  },
+  {
+    icon: Sparkles,
+    title: "AI that assists. Teachers decide.",
+    desc: "AI drafts report comments from a student's results. Nothing reaches a parent until a teacher has read and approved it.",
+  },
+  {
+    icon: Smartphone,
+    title: "Works on the phones people already have",
+    desc: "Nothing to install. Staff and parents sign in from any browser with a secure link sent to their email.",
+  },
+  {
+    icon: Palette,
+    title: "Your school, your identity",
+    desc: "Your logo, colours and contact details on dashboards, report cards and receipts, and a web address of your own.",
+    soon: true,
+  },
+];
+
+/** Faint exercise-book ruling with a red margin, for the hero background. */
+const RULED_PAPER = {
+  backgroundImage:
+    "linear-gradient(to right, transparent 0 63px, rgb(248 113 113 / 0.35) 63px 65px, transparent 65px), repeating-linear-gradient(to bottom, transparent 0 35px, rgb(191 219 254 / 0.55) 35px 36px)",
+} as const;
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 border-b border-slate-100/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <BrandLogo size="md" />
-            
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-500">
-              <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
-              <a href="#how-it-works" className="hover:text-blue-600 transition-colors">How it Works</a>
-              <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-900">
+        {/* Navigation */}
+        <nav className="fixed inset-x-0 top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+            <Link href="/" aria-label="Philos EduOS home">
+              <BrandLogo size="md" />
+            </Link>
+            <div className="hidden items-center gap-8 text-sm font-medium text-slate-500 md:flex">
+              <a href="#outcomes" className="transition-colors hover:text-blue-600">Why it matters</a>
+              <a href="#term" className="transition-colors hover:text-blue-600">How a term works</a>
+              <a href="#why-philos" className="transition-colors hover:text-blue-600">Why Philos</a>
             </div>
-
             <div className="flex items-center gap-4">
-              <Link href="/auth" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors hidden sm:block">
-                Log in
+              <Link href="/auth" className="hidden text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:block">
+                Sign in
               </Link>
-              <Link href="/auth" className="bg-blue-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40">
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="max-w-xl"
-          >
-            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold mb-6 border border-blue-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-              Secure Multi-Tenant School Management
-            </div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1] mb-6">
-              Everything Your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">School Needs</span>, in One Place.
-            </h1>
-            <p className="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
-              Philos EduOS is a multi-tenant school management platform for Nigerian educational institutions — students, teachers, classes, attendance, grades, report comments, messaging and fee collection, all in one secure system.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/auth" className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 hover:-translate-y-0.5">
-                Get Started
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <a href="#features" className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 px-8 py-4 rounded-xl font-semibold border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm">
-                See Features
+              <a href="#get-started" className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700">
+                Get started
               </a>
             </div>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative"
-          >
-            <div className="absolute inset-0 bg-gradient-to-tr from-blue-100 to-yellow-50 rounded-3xl transform rotate-3 scale-105 opacity-80"></div>
-            <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-white/50">
-              <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
-                <span className="ml-3 text-xs font-medium text-slate-400">dashboard</span>
+          </div>
+        </nav>
+
+        {/* Hero */}
+        <header className="relative overflow-hidden pb-20 pt-32">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black_40%,transparent)]"
+            style={RULED_PAPER}
+          />
+          <div className="relative mx-auto grid max-w-7xl items-center gap-16 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+            {/* Hero copy is not animated, so it is readable before JavaScript
+                loads on slow connections. Only the decoration moves. */}
+            <div className="max-w-xl">
+              <p className="mb-5 text-sm font-semibold text-blue-700">
+                For proprietors, principals and the people who make schools work
+              </p>
+              <h1 className="mb-6 text-5xl font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-6xl">
+                Less paperwork.{" "}
+                <span className="relative whitespace-nowrap text-blue-600">
+                  More learning.
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 300 16"
+                    preserveAspectRatio="none"
+                    className="absolute -bottom-2 left-0 h-3 w-full"
+                  >
+                    <motion.path
+                      d="M3 11 C 70 3, 150 3, 297 8"
+                      fill="none"
+                      stroke="#eab308"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ delay: 0.6, duration: 0.7, ease: "easeInOut" }}
+                    />
+                  </svg>
+                </span>
+              </h1>
+              <p className="mb-8 text-lg font-medium leading-relaxed text-slate-600">
+                Philos EduOS brings attendance, results, report comments, fees and
+                parent communication into one calm place. Leaders see the whole
+                school at a glance, teachers get back to teaching, and parents
+                always know how their child is doing.
+              </p>
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <a
+                  href="#get-started"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-4 font-semibold text-white shadow-xl shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700"
+                >
+                  Bring Philos to your school
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+                <a
+                  href="#term"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-8 py-4 font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
+                >
+                  See how a term works
+                </a>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
-                  <GraduationCap className="w-5 h-5 text-blue-600 mb-2" />
-                  <div className="text-sm font-bold text-slate-800">Student Records</div>
-                  <div className="text-xs text-slate-500 font-medium">Admissions & profiles</div>
-                </div>
-                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
-                  <Users className="w-5 h-5 text-blue-600 mb-2" />
-                  <div className="text-sm font-bold text-slate-800">Staff & Classes</div>
-                  <div className="text-xs text-slate-500 font-medium">Teachers, roles & groups</div>
-                </div>
-              </div>
-              
-              <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="text-sm font-semibold text-slate-700">Weekly Attendance</div>
-                  <div className="text-xs text-slate-400 font-medium">Marked in seconds</div>
-                </div>
-                <div className="h-24 flex items-end gap-2">
-                  {[40, 70, 50, 80, 60, 90, 45].map((h, i) => (
-                    <div key={i} className="flex-1 bg-blue-100 rounded-t-sm relative group hover:bg-blue-600 transition-colors" style={{ height: `${h}%` }}>
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                        {h}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <p className="mt-8 text-sm text-slate-500">
+                WAEC/NECO · Cambridge · IB · American curricula · Billing in Naira
+              </p>
             </div>
-          </motion.div>
-        </div>
-      </section>
 
-      {/* What's Inside Section */}
-      <section className="py-12 border-y border-slate-100 bg-slate-50/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-xs font-bold text-slate-400 mb-8 uppercase tracking-widest">Built for every member of your school community</p>
-          <div className="flex flex-wrap justify-center gap-4 md:gap-6">
-            {["School Admins", "Teachers", "Students", "Parents", "Non-Teaching Staff", "Platform Operators"].map((r) => (
-              <span key={r} className="text-sm font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-full">
-                {r}
-              </span>
-            ))}
+            <ReportCard />
           </div>
-        </div>
-      </section>
+        </header>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Everything You Need to Run Your School</h2>
-            <p className="text-lg text-slate-600 font-medium">A comprehensive, intuitive platform for educators, students, parents and staff — every feature works in the product today.</p>
+        {/* Outcomes */}
+        <section id="outcomes" className="scroll-mt-20 border-t border-slate-100 bg-slate-50/60 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <Reveal className="mx-auto mb-16 max-w-2xl text-center">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+                A better-run school, for everyone in it
+              </h2>
+              <p className="text-lg font-medium text-slate-600">
+                When the records keep themselves, people spend their time on
+                what matters: teaching, learning and looking after children.
+              </p>
+            </Reveal>
+            <div className="grid gap-6 md:grid-cols-2">
+              {OUTCOMES.map((o, i) => (
+                <Reveal key={o.who} delay={0.08 * i}>
+                  <article className="h-full rounded-2xl border border-slate-200 bg-white p-8">
+                    <div className="mb-5 flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <o.icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        {o.who}
+                      </span>
+                    </div>
+                    <h3 className="mb-3 text-xl font-bold text-slate-900">{o.title}</h3>
+                    <p className="font-medium leading-relaxed text-slate-600">{o.desc}</p>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
           </div>
+        </section>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { icon: <Users className="w-6 h-6 text-blue-600" />, title: "Multi-Tenant Architecture", desc: "Each school gets its own isolated workspace with role-based access control for admins, teachers, students, parents and staff." },
-              { icon: <Calendar className="w-6 h-6 text-slate-500" />, title: "Attendance Tracking", desc: "Teachers mark attendance per class; parents can review their children's records at any time." },
-              { icon: <LineChart className="w-6 h-6 text-green-600" />, title: "Grades & Performance", desc: "Record subject grades and view performance per student — with attendance rates and fee status alongside." },
-              { icon: <Sparkles className="w-6 h-6 text-yellow-600" />, title: "AI-Assisted Report Comments", desc: "Teachers draft personalized report card comments with AI assistance, then review and approve before they're final." },
-              { icon: <MessageSquare className="w-6 h-6 text-slate-800" />, title: "Messaging & Announcements", desc: "School-wide announcements plus direct messaging between community members, with read receipts." },
-              { icon: <Wallet className="w-6 h-6 text-blue-500" />, title: "Fee Collection via Paystack", desc: "Generate invoices in Naira and let parents pay securely through Paystack, with automatic webhook verification." },
-              { icon: <BookOpen className="w-6 h-6 text-yellow-600" />, title: "Learning Materials", desc: "Share documents and links per class so students always have the resources they need." },
-              { icon: <CheckCircle2 className="w-6 h-6 text-blue-500" />, title: "Tasks & Transportation", desc: "Assign tasks to staff and manage student transportation routes from one dashboard." }
-            ].map((feature, i) => (
-              <div key={i} className="group p-8 rounded-2xl border border-slate-100 hover:border-blue-100 hover:shadow-2xl hover:shadow-blue-500/5 transition-all bg-white">
-                <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mb-5 group-hover:scale-110 group-hover:bg-blue-50 transition-all duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                <p className="text-slate-500 leading-relaxed text-sm font-medium">{feature.desc}</p>
-              </div>
-            ))}
+        {/* A term with Philos */}
+        <section id="term" className="scroll-mt-20 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <Reveal className="mb-16 max-w-2xl">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+                One term, start to finish
+              </h2>
+              <p className="text-lg font-medium text-slate-600">
+                Philos follows the rhythm your school already runs on: resumption,
+                daily registers, continuous assessment, exams, report cards and fees.
+              </p>
+            </Reveal>
+            <TermTimeline />
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA Section */}
-      <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPHBhdGggZD0iTTAgMEw4IDhNOCwwTDAoOCkiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+')] opacity-20"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">Ready to Move Your School Online?</h2>
-          <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto font-medium">Create your school workspace in minutes — no setup calls, no paperwork.</p>
-          <Link href="/auth" className="inline-flex items-center gap-2 bg-white text-slate-900 px-10 py-4 rounded-full font-bold hover:bg-slate-50 transition-all shadow-2xl hover:-translate-y-1">
-            Get Started
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-        </div>
-      </section>
+        {/* Why Philos */}
+        <section id="why-philos" className="scroll-mt-20 border-t border-slate-100 bg-slate-50/60 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <Reveal className="mx-auto mb-16 max-w-2xl text-center">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+                What sets Philos apart
+              </h2>
+              <p className="text-lg font-medium text-slate-600">
+                Not a foreign tool adapted for Nigeria. Built here, for how schools
+                here actually work.
+              </p>
+            </Reveal>
+            <div className="grid gap-x-10 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
+              {REASONS.map((r, i) => (
+                <Reveal key={r.title} delay={0.06 * i}>
+                  <div className="flex gap-4">
+                    <r.icon className="mt-1 h-6 w-6 shrink-0 text-blue-600" aria-hidden="true" />
+                    <div>
+                      <h3 className="mb-2 flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900">
+                        {r.title}
+                        {r.soon && (
+                          <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800">
+                            Coming soon
+                          </span>
+                        )}
+                      </h3>
+                      <p className="leading-relaxed text-slate-600">{r.desc}</p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
 
-      {/* Footer */}
-      <footer className="bg-slate-950 text-slate-400 py-12 text-sm border-t border-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <BrandLogo size="sm" tone="dark" />
-          <p>&copy; {new Date().getFullYear()} Philos EduOS. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+        {/* Get started: a chalkboard */}
+        <section id="get-started" className="scroll-mt-16 bg-white px-4 py-24 sm:px-6 lg:px-8">
+          <Reveal className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border-[10px] border-amber-900/80 bg-slate-800 px-6 py-16 text-center text-white shadow-2xl sm:px-12">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-40"
+              style={{
+                backgroundImage:
+                  "radial-gradient(ellipse at 20% 30%, rgb(255 255 255 / 0.08), transparent 45%), radial-gradient(ellipse at 80% 70%, rgb(255 255 255 / 0.06), transparent 40%)",
+              }}
+            />
+            <div className="relative">
+              <p className="font-hand mb-2 text-3xl text-yellow-300">Ready for a calmer term?</p>
+              <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-5xl">
+                Bring Philos to your school
+              </h2>
+              <p className="mx-auto mb-10 max-w-2xl text-lg font-medium text-slate-300">
+                We set your school up with you: classes, subjects and your first
+                staff. Then your team signs in with a secure link sent to their
+                email. Already set up? Sign in below.
+              </p>
+              <Link
+                href="/auth"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-10 py-4 font-bold text-slate-900 shadow-2xl transition-all hover:-translate-y-1 hover:bg-slate-50"
+              >
+                Get started
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            </div>
+          </Reveal>
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-900 bg-slate-950 py-12 text-sm text-slate-400">
+          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:px-6 md:flex-row lg:px-8">
+            <BrandLogo size="sm" tone="dark" />
+            <p>&copy; {new Date().getFullYear()} Philos EduOS. All rights reserved.</p>
+          </div>
+        </footer>
+      </div>
+    </MotionConfig>
   );
 }

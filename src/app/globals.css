@@ -130,4 +130,6 @@
 @theme inline {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji";
+  /* Landing-page handwriting accent (#26); use as `font-hand`. */
+  --font-hand: var(--font-caveat), "Comic Sans MS", cursive;
 }

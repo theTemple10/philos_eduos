@@ -4,17 +4,33 @@ import { feeSchedules, invoices, payments, students, classes } from "@/lib/db/sc
 import { eq, and } from "drizzle-orm";
 import { requireTenantMember, requireAdmin, assertTenantResource } from "@/lib/api/auth";
 import { PAYMENT_ACTIONS } from "@/lib/payments/actions";
+import {
+  PaystackUnavailableError,
+  confirmPayment,
+  findPaymentByReference,
+} from "@/lib/payments/settle";
+import { randomBytes } from "node:crypto";
 
 const CURRENCY = "NGN";
 const PAYSTACK_BASE = "https://api.paystack.co";
 
+/** Unguessable payment reference (Paystack allows letters, digits, - . =). */
 function randomReference(): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let suffix = "";
-  for (let i = 0; i < 12; i++) {
-    suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return `PE-${Date.now()}-${suffix}`;
+  return `PE-${Date.now()}-${randomBytes(9).toString("hex").toUpperCase()}`;
+}
+
+/**
+ * May this user pay, or check the payment of, this student's fees?
+ * School admins can; otherwise only the student's linked parent or the
+ * student themself (#6). Bursars join this list with the roles work (#15).
+ */
+async function canPayForStudent(
+  ctx: { userId: string; tenantId: string; user: { role?: string | null } },
+  studentId: string,
+): Promise<boolean> {
+  if (ctx.user.role === "admin") return true;
+  const ids = await studentIdsForUser(ctx.userId, ctx.tenantId);
+  return ids.includes(studentId);
 }
 
 async function studentIdsForUser(userId: string, tenantId: string): Promise<string[]> {
@@ -49,11 +65,8 @@ export async function GET(request: Request) {
         .from(payments)
         .where(and(eq(payments.reference, reference), eq(payments.tenantId, tenantId)));
       const payment = rows[0] ?? null;
-      if (payment && !isAdmin && user.role !== "teacher") {
-        const studentIds = await studentIdsForUser(userId, tenantId);
-        if (!studentIds.includes(payment.studentId)) {
-          return NextResponse.json(null);
-        }
+      if (payment && !(await canPayForStudent(result.data, payment.studentId))) {
+        return NextResponse.json(null);
       }
       return NextResponse.json(payment);
     }
@@ -127,7 +140,7 @@ export async function POST(request: Request) {
       case PAYMENT_ACTIONS.generateInvoices:
         return handleGenerateInvoices(body);
       case PAYMENT_ACTIONS.initializePayment:
-        return handleInitializePayment(body);
+        return handleInitializePayment(body, new URL(request.url).origin);
       case PAYMENT_ACTIONS.verifyPayment:
         return handleVerifyPayment(body);
       default:
@@ -387,7 +400,7 @@ async function handleGenerateInvoices(body: {
   return NextResponse.json({ created });
 }
 
-async function handleInitializePayment(body: { invoiceId?: string }) {
+async function handleInitializePayment(body: { invoiceId?: string }, requestOrigin: string) {
   const result = await requireTenantMember();
   if (!result.ok) return result.response;
 
@@ -411,6 +424,14 @@ async function handleInitializePayment(body: { invoiceId?: string }) {
     .limit(1);
   const invoice = invRows[0];
   if (!invoice) {
+    return NextResponse.json(
+      { error: "That invoice could not be found in your school." },
+      { status: 404 },
+    );
+  }
+
+  if (!(await canPayForStudent(result.data, invoice.studentId))) {
+    // Same answer as "not found": don't confirm the invoice exists.
     return NextResponse.json(
       { error: "That invoice could not be found in your school." },
       { status: 404 },
@@ -457,7 +478,9 @@ async function handleInitializePayment(body: { invoiceId?: string }) {
       amount: outstandingKobo,
       currency: CURRENCY,
       reference,
-      callback_url: `${process.env.SITE_URL ?? ""}/dashboard`,
+      // Paystack appends ?trxref=…&reference=…; the dashboard then asks us
+      // to verify (see PaymentReturnNotice).
+      callback_url: `${process.env.SITE_URL?.trim() || requestOrigin}/dashboard`,
       metadata: { invoiceId, tenantId: result.data.tenantId },
     }),
   });
@@ -484,66 +507,31 @@ async function handleVerifyPayment(body: { reference?: string }) {
   const result = await requireTenantMember();
   if (!result.ok) return result.response;
 
-  const { reference } = body;
+  const reference = typeof body.reference === "string" ? body.reference.trim() : "";
   if (!reference) {
     return NextResponse.json({ error: "reference is required." }, { status: 400 });
   }
 
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
-  if (!secretKey) {
-    return NextResponse.json(
-      { error: "Paystack isn't configured." },
-      { status: 500 },
-    );
+  const payment = await findPaymentByReference(reference);
+  if (
+    !payment ||
+    payment.tenantId !== result.data.tenantId ||
+    !(await canPayForStudent(result.data, payment.studentId))
+  ) {
+    return NextResponse.json({ outcome: "unknown" });
   }
 
-  const res = await fetch(`${PAYSTACK_BASE}/transaction/verify/${reference}`, {
-    headers: { Authorization: `Bearer ${secretKey}` },
-  });
-  const data = (await res.json()) as {
-    status?: boolean;
-    data?: { status?: string; amount?: number };
-  };
-
-  if (data.status && data.data?.status === "success") {
-    const payRows = await db
-      .select()
-      .from(payments)
-      .where(and(eq(payments.reference, reference), eq(payments.tenantId, result.data.tenantId)));
-    const payment = payRows[0];
-    if (payment && payment.status !== "completed") {
-      await db
-        .update(payments)
-        .set({
-          status: "completed",
-          amountKobo: data.data.amount ?? payment.amountKobo,
-          paymentMethod: "paystack",
-        })
-        .where(eq(payments.id, payment.id));
-
-      if (payment.invoiceId) {
-        const invRows = await db
-          .select()
-          .from(invoices)
-          .where(eq(invoices.id, payment.invoiceId))
-          .limit(1);
-        const invoice = invRows[0];
-        if (invoice) {
-          const paid = invoice.paidAmountKobo + (data.data.amount ?? payment.amountKobo);
-          const status = paid >= invoice.amountKobo ? "paid" : "partial";
-          await db
-            .update(invoices)
-            .set({
-              paidAmountKobo: Math.min(paid, invoice.amountKobo),
-              status,
-              reference,
-            })
-            .where(eq(invoices.id, invoice.id));
-        }
-      }
+  try {
+    const outcome = await confirmPayment(payment);
+    return NextResponse.json({ outcome });
+  } catch (err) {
+    if (err instanceof PaystackUnavailableError) {
+      console.error("verifyPayment: Paystack unavailable", err.message);
+      return NextResponse.json(
+        { error: "We couldn't reach Paystack to confirm this payment. Please try again shortly." },
+        { status: 503 },
+      );
     }
-    return NextResponse.json({ status: "success" });
+    throw err;
   }
-
-  return NextResponse.json({ status: "pending" });
 }

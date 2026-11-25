@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { BrandMark } from "@/components/BrandLogo";
+import { materialFileHref } from "@/lib/materials/links";
 
 function formatWhen(ts: number): string {
   const diff = Date.now() - ts;
@@ -510,7 +511,7 @@ function MaterialsSection() {
                 </div>
               </div>
               <a
-                href={material.fileUrl}
+                href={materialFileHref(material.id)}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full mt-6 inline-flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white font-semibold rounded-xl transition-all px-4 py-2 text-sm"

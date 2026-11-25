@@ -11,6 +11,14 @@ import { useReportComments } from "@/hooks/use-report-comments";
 import { useTeachers } from "@/hooks/use-teachers";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api/client";
 import { REPORT_COMMENT_ACTIONS } from "@/lib/report-comments/actions";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
+import {
+  MATERIALS_BUCKET,
+  MATERIAL_ACCEPT,
+  STORAGE_URL_PREFIX,
+  checkMaterialFile,
+} from "@/lib/materials/files";
+import { materialFileHref } from "@/lib/materials/links";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1068,27 +1076,36 @@ function MaterialsSection() {
       setError("Fill in title, subject, class and choose a file.");
       return;
     }
+    const check = checkMaterialFile(file);
+    if (!check.ok) {
+      setError(check.error);
+      return;
+    }
     setUploading(true);
     setError(null);
+    let uploadedPath: string | null = null;
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const uploadRes = await fetch('/api/materials/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!uploadRes.ok) {
-        throw new Error("Upload failed. Please try again.");
-      }
-      const { fileUrl, fileType } = await uploadRes.json();
-      await apiPost('/api/materials', {
+      // 1. Ask the server for a one-time upload slot for this class (#4).
+      const slot = await apiPost<{ path: string; token: string; contentType: string; fileType: string }>(
+        "/api/materials/upload",
+        { classId, fileName: file.name, fileSize: file.size },
+      );
+      // 2. Upload straight to private storage.
+      const { error: uploadError } = await createSupabaseClient()
+        .storage.from(MATERIALS_BUCKET)
+        .uploadToSignedUrl(slot.path, slot.token, file, { contentType: slot.contentType });
+      if (uploadError) throw new Error("The upload didn't finish. Please check your connection and try again.");
+      uploadedPath = slot.path;
+      // 3. Save the material.
+      await apiPost("/api/materials", {
         title: title.trim(),
         description: description.trim() || undefined,
         subject: subject.trim(),
         classId,
-        fileUrl,
-        fileType: fileType || file.name.split(".").pop()?.toUpperCase() || "FILE",
+        fileUrl: `${STORAGE_URL_PREFIX}${slot.path}`,
+        fileType: slot.fileType,
       });
+      uploadedPath = null;
       toast.success("Material uploaded successfully.");
       setShowUpload(false);
       setTitle("");
@@ -1099,6 +1116,10 @@ function MaterialsSection() {
       await refetchMaterials();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't upload that material.");
+      // Don't leave an orphaned file behind if saving failed.
+      if (uploadedPath) {
+        apiDelete("/api/materials/upload", { path: uploadedPath }).catch(() => {});
+      }
     } finally {
       setUploading(false);
     }
@@ -1156,10 +1177,16 @@ function MaterialsSection() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-bold text-slate-700 block mb-2">File</label>
+                <label className="text-sm font-bold text-slate-700 block mb-2">File <span className="font-medium text-slate-400">(up to 25 MB)</span></label>
                 <Input
                   type="file"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  accept={MATERIAL_ACCEPT}
+                  onChange={(e) => {
+                    const chosen = e.target.files?.[0] ?? null;
+                    setFile(chosen);
+                    const check = chosen ? checkMaterialFile(chosen) : null;
+                    setError(check && !check.ok ? check.error : null);
+                  }}
                   className="border-slate-200/60 bg-slate-50/50 focus-visible:ring-blue-500"
                 />
               </div>
@@ -1219,7 +1246,7 @@ function MaterialsSection() {
               </div>
               <div className="flex gap-2 mt-6">
                 <a
-                  href={material.fileUrl}
+                  href={materialFileHref(material.id)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white font-semibold rounded-xl transition-all px-4 py-2 text-sm"

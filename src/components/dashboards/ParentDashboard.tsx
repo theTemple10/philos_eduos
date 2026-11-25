@@ -33,6 +33,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandLogo";
+import { materialFileHref } from "@/lib/materials/links";
 
 export default function ParentDashboard() {
   const { user, signOut } = useAuth();
@@ -638,7 +639,7 @@ function MaterialsSection({
                 </div>
               </div>
               {m.description && <p className="text-sm text-slate-500 mb-4">{m.description}</p>}
-              <a href={m.fileUrl} target="_blank" rel="noreferrer">
+              <a href={materialFileHref(m.id)} target="_blank" rel="noreferrer">
                 <Button variant="outline" className="w-full mt-2 border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white font-semibold rounded-xl transition-all">
                   Download
                 </Button>

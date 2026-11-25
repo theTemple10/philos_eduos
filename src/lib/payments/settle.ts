@@ -19,7 +19,13 @@ import { decideSettlement, type PaystackTransaction } from "./rules";
  * money is applied to the invoice exactly once.
  */
 
-const PAYSTACK_BASE = "https://api.paystack.co";
+/**
+ * Paystack API base URL. PAYSTACK_API_BASE exists only so tests can point
+ * the app at a local stand-in; leave it unset everywhere else.
+ */
+export function paystackApiBase(): string {
+  return process.env.PAYSTACK_API_BASE?.trim() || "https://api.paystack.co";
+}
 
 export class PaystackUnavailableError extends Error {}
 
@@ -32,7 +38,7 @@ export async function fetchPaystackTransaction(
 
   let res: Response;
   try {
-    res = await fetch(`${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
+    res = await fetch(`${paystackApiBase()}/transaction/verify/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${secretKey}` },
       cache: "no-store",
     });

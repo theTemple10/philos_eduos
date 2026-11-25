@@ -8,12 +8,11 @@ import {
   PaystackUnavailableError,
   confirmPayment,
   findPaymentByReference,
+  paystackApiBase,
 } from "@/lib/payments/settle";
 import { randomBytes } from "node:crypto";
 
 const CURRENCY = "NGN";
-const PAYSTACK_BASE = "https://api.paystack.co";
-
 /** Unguessable payment reference (Paystack allows letters, digits, - . =). */
 function randomReference(): string {
   return `PE-${Date.now()}-${randomBytes(9).toString("hex").toUpperCase()}`;
@@ -467,7 +466,7 @@ async function handleInitializePayment(body: { invoiceId?: string }, requestOrig
     tenantId: result.data.tenantId,
   });
 
-  const res = await fetch(`${PAYSTACK_BASE}/transaction/initialize`, {
+  const res = await fetch(`${paystackApiBase()}/transaction/initialize`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${secretKey}`,

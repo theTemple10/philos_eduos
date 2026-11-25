@@ -20,6 +20,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.8.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -98,6 +99,7 @@
     },
     "minimatch@3": {
       "brace-expansion": "1.1.21"
-    }
+    },
+    "standardwebhooks": "1.1.1"
   }
 }

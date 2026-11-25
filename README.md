@@ -12,7 +12,7 @@ Multi-tenant school management platform for Nigerian educational institutions.
 - **Auth**: Supabase Auth (email OTP)
 - **Email**: Supabase Auth email OTP (the Resend helper is not currently wired into sign-in)
 - **Payments**: Paystack
-- **AI**: Anthropic Claude (report comments)
+- **AI**: Anthropic Claude via `@anthropic-ai/sdk` (Claude Opus 5.5 drafts report comments; teachers approve them)
 - **Deployment**: Vercel + Supabase
 
 ## Project Structure
@@ -79,6 +79,7 @@ package ships the fix itself; then check `npm audit` still reports no issues.
 |---|---|
 | `next` → `postcss ^8.5.26` | Next 15 pins `postcss@8.4.31` (XSS and source-map file-disclosure advisories). The build output is byte-identical with the patched version. Drop when upgrading to a Next release that bundles a fixed PostCSS. |
 | `minimatch@3` → `brace-expansion 1.1.21` | ESLint's `minimatch@3` pulls `brace-expansion` ≤1.1.20 (CPU denial-of-service advisories). Development only. |
+| `standardwebhooks` → `1.1.1` | `@anthropic-ai/sdk` 1.8.0 accepts `^1.0.0`, which resolved to 1.3.0, published under 14 days before install. We only install versions at least two weeks old. Drop once 1.3.x is older than that (any time after 2026-12-01). |
 
 Known and accepted: `drizzle-kit` (development only) bundles an old `esbuild`
 with a dev-server advisory. drizzle-kit never starts that server, and npm's

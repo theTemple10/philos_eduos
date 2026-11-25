@@ -9,6 +9,7 @@ import { useInvoices, useMyPayments } from "@/hooks/use-payments";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useMessages } from "@/hooks/use-messages";
 import { apiPost, apiPatch } from "@/lib/api/client";
+import { PAYMENT_ACTIONS } from "@/lib/payments/actions";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -847,12 +848,15 @@ function PaymentsSection() {
     setPayingInvoice(invoiceId);
     setStatusMessage(null);
     try {
-      const result = await apiPost<{ authorizationUrl: string }>('/api/payments', { action: 'initialize', invoiceId });
-      window.open(result.authorizationUrl, "_blank");
-      setStatusMessage("Payment page opened in a new tab. After you complete payment, refresh this page to confirm.");
+      const result = await apiPost<{ authorizationUrl: string }>('/api/payments', {
+        action: PAYMENT_ACTIONS.initializePayment,
+        invoiceId,
+      });
+      // Same tab: Paystack sends the parent back to the dashboard afterwards,
+      // where the payment is confirmed. A new tab is often blocked on phones.
+      window.location.assign(result.authorizationUrl);
     } catch (err) {
       setStatusMessage(err instanceof Error ? err.message : "Couldn't start payment.");
-    } finally {
       setPayingInvoice(null);
     }
   };
@@ -887,7 +891,7 @@ function PaymentsSection() {
               {invoices.map((inv: any) => {
                 const outstanding = (inv.amountKobo - inv.paidAmountKobo) / 100;
                 return (
-                  <tr key={inv._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6 text-sm font-medium text-slate-800">{inv.title}</td>
                     <td className="p-4 text-sm font-bold text-slate-800">₦{outstanding.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                     <td className="p-4 text-sm font-medium text-slate-700">{inv.dueDate}</td>
@@ -902,10 +906,10 @@ function PaymentsSection() {
                           variant="ghost"
                           size="sm"
                           className="text-slate-900 hover:text-white hover:bg-slate-900 font-semibold bg-slate-100"
-                          onClick={() => handlePay(inv._id)}
-                          disabled={payingInvoice === inv._id}
+                          onClick={() => handlePay(inv.id)}
+                          disabled={payingInvoice === inv.id}
                         >
-                          {payingInvoice === inv._id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Pay Now"}
+                          {payingInvoice === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Pay Now"}
                         </Button>
                       )}
                     </td>
@@ -924,7 +928,7 @@ function PaymentsSection() {
           </CardHeader>
           <CardContent className="space-y-2">
             {payments.map((p: any) => (
-              <div key={p._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
                 <div>
                   <p className="text-sm font-bold text-slate-800">{p.description}</p>
                   <p className="text-xs text-slate-400 font-medium font-mono">{p.reference}</p>

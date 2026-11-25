@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { feeSchedules, invoices, payments, students, classes } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireTenantMember, requireAdmin, assertTenantResource } from "@/lib/api/auth";
+import { PAYMENT_ACTIONS } from "@/lib/payments/actions";
 
 const CURRENCY = "NGN";
 const PAYSTACK_BASE = "https://api.paystack.co";
@@ -117,17 +118,17 @@ export async function POST(request: Request) {
     const { action } = body;
 
     switch (action) {
-      case "createFeeSchedule":
+      case PAYMENT_ACTIONS.createFeeSchedule:
         return handleCreateFeeSchedule(body);
-      case "updateFeeSchedule":
+      case PAYMENT_ACTIONS.updateFeeSchedule:
         return handleUpdateFeeSchedule(body);
-      case "createInvoice":
+      case PAYMENT_ACTIONS.createInvoice:
         return handleCreateInvoice(body);
-      case "generateInvoices":
+      case PAYMENT_ACTIONS.generateInvoices:
         return handleGenerateInvoices(body);
-      case "initializePayment":
+      case PAYMENT_ACTIONS.initializePayment:
         return handleInitializePayment(body);
-      case "verifyPayment":
+      case PAYMENT_ACTIONS.verifyPayment:
         return handleVerifyPayment(body);
       default:
         return NextResponse.json({ error: "Unknown action." }, { status: 400 });

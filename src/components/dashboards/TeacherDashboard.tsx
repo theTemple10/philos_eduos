@@ -195,7 +195,7 @@ function OverviewSection() {
     let cancelled = false;
     const load = async () => {
       try {
-        const studentIds = (students ?? []).map((s: any) => s._id);
+        const studentIds = (students ?? []).map((s: any) => s.id);
         const perStudent = await Promise.all(
           studentIds.map((id: string) =>
             apiGet<any[]>('/api/grades', { studentId: id }),
@@ -236,13 +236,13 @@ function OverviewSection() {
   const activity = useMemo(() => {
     const items = [
       ...(messages ?? []).map((m: any) => ({
-        id: m._id,
+        id: m.id,
         text: m.content,
         time: m.createdAt,
         icon: <MessageSquare className="w-3.5 h-3.5 text-yellow-500" />,
       })),
       ...(announcements ?? []).map((a: any) => ({
-        id: a._id,
+        id: a.id,
         text: a.title,
         time: a.createdAt,
         icon: <Bell className="w-3.5 h-3.5 text-blue-500" />,
@@ -285,7 +285,7 @@ function OverviewSection() {
               <p className="text-sm text-slate-500 font-medium p-3">No classes scheduled yet.</p>
             )}
             {(classes ?? []).map((cls: any) => (
-              <div key={cls._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
+              <div key={cls.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="bg-slate-50 p-1.5 rounded-full"><Calendar className="w-3.5 h-3.5 text-slate-500" /></div>
                   <div>
@@ -342,9 +342,9 @@ function ClassesSection({ onViewStudents }: { onViewStudents: (classId: string) 
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {(classes ?? []).map((cls: any) => {
-          const studentCount = (students ?? []).filter((s: any) => s.classId === cls._id).length;
+          const studentCount = (students ?? []).filter((s: any) => s.classId === cls.id).length;
           return (
-            <Card key={cls._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+            <Card key={cls.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4 mb-5">
                   <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
@@ -377,7 +377,7 @@ function ClassesSection({ onViewStudents }: { onViewStudents: (classId: string) 
                   <Button
                     variant="outline"
                     className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white font-semibold rounded-xl transition-all"
-                    onClick={() => onViewStudents(cls._id)}
+                    onClick={() => onViewStudents(cls.id)}
                   >
                     View Students
                   </Button>
@@ -400,14 +400,14 @@ function AttendanceSection({ initialClassId }: { initialClassId: string | null }
   const [date, setDate] = useState<string>(todayIso());
   const [markingId, setMarkingId] = useState<string | null>(null);
 
-  const effectiveClassId = classId ?? (classes && classes.length > 0 ? classes[0]._id : null);
+  const effectiveClassId = classId ?? (classes && classes.length > 0 ? classes[0].id : null);
 
   const { data: students } = useStudentsByClass(effectiveClassId ?? undefined);
   const { data: attendance, refetch: refetchAttendance } = useAttendanceByDate(date || undefined);
 
   const statusByStudent = new Map<string, string>();
   for (const record of attendance ?? []) {
-    if (effectiveClassId && (students ?? []).some((s: any) => s._id === record.studentId)) {
+    if (effectiveClassId && (students ?? []).some((s: any) => s.id === record.studentId)) {
       statusByStudent.set(record.studentId, record.status);
     }
   }
@@ -445,7 +445,7 @@ function AttendanceSection({ initialClassId }: { initialClassId: string | null }
               >
                 <option value="" disabled>Select a class…</option>
                 {(classes ?? []).map((cls: any) => (
-                  <option key={cls._id} value={cls._id}>{cls.name} - {cls.gradeLevel}</option>
+                  <option key={cls.id} value={cls.id}>{cls.name} - {cls.gradeLevel}</option>
                 ))}
               </select>
             </div>
@@ -475,9 +475,9 @@ function AttendanceSection({ initialClassId }: { initialClassId: string | null }
             </thead>
             <tbody>
               {(students ?? []).map((student: any) => {
-                const status = statusByStudent.get(student._id);
+                const status = statusByStudent.get(student.id);
                 return (
-                  <tr key={student._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
@@ -509,8 +509,8 @@ function AttendanceSection({ initialClassId }: { initialClassId: string | null }
                             key={s}
                             variant="ghost"
                             size="sm"
-                            disabled={markingId === student._id}
-                            onClick={() => handleMark(student._id, s)}
+                            disabled={markingId === student.id}
+                            onClick={() => handleMark(student.id, s)}
                             className={`font-semibold ${
                               status === s
                                 ? "bg-slate-900 text-white"
@@ -521,7 +521,7 @@ function AttendanceSection({ initialClassId }: { initialClassId: string | null }
                                     : "text-red-600 hover:text-red-700 hover:bg-red-50"
                             }`}
                           >
-                            {markingId === student._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : s}
+                            {markingId === student.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : s}
                           </Button>
                         ))}
                       </div>
@@ -628,7 +628,7 @@ function GradesSection() {
               >
                 <option value="" disabled>Select a class…</option>
                 {(classes ?? []).map((cls: any) => (
-                  <option key={cls._id} value={cls._id}>{cls.name}</option>
+                  <option key={cls.id} value={cls.id}>{cls.name}</option>
                 ))}
               </select>
             </div>
@@ -641,7 +641,7 @@ function GradesSection() {
               >
                 <option value="" disabled>Select a student…</option>
                 {(students ?? []).map((s: any) => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -708,7 +708,7 @@ function GradesSection() {
       <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100">
         <CardHeader>
           <CardTitle className="text-base font-bold text-slate-800">
-            Grades for {students?.find((s: any) => s._id === studentId)?.name ?? "selected student"}
+            Grades for {students?.find((s: any) => s.id === studentId)?.name ?? "selected student"}
           </CardTitle>
         </CardHeader>
         <div className="overflow-x-auto">
@@ -725,7 +725,7 @@ function GradesSection() {
             </thead>
             <tbody>
               {(grades ?? []).map((g: any) => (
-                <tr key={g._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                <tr key={g.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 pl-6">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
@@ -787,7 +787,7 @@ function CommentsSection() {
   const { data: classStudents } = useStudentsByClass(classId ?? undefined);
 
   const studentName = (id: string) =>
-    (students ?? []).find((s: any) => s._id === id)?.name ?? "Unknown student";
+    (students ?? []).find((s: any) => s.id === id)?.name ?? "Unknown student";
 
   const handleDraft = async () => {
     if (!studentId || !subject.trim() || !term.trim() || !rawNotes.trim()) {
@@ -895,7 +895,7 @@ function CommentsSection() {
               >
                 <option value="" disabled>Select a class…</option>
                 {(classes ?? []).map((cls: any) => (
-                  <option key={cls._id} value={cls._id}>{cls.name}</option>
+                  <option key={cls.id} value={cls.id}>{cls.name}</option>
                 ))}
               </select>
             </div>
@@ -908,7 +908,7 @@ function CommentsSection() {
               >
                 <option value="" disabled>Select a student…</option>
                 {(classStudents ?? []).map((s: any) => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -1005,7 +1005,7 @@ function CommentsSection() {
             <p className="text-sm text-slate-500 font-medium">No report comments yet.</p>
           )}
           {(comments ?? []).map((c: any) => (
-            <div key={c._id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+            <div key={c.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-bold text-slate-800">{studentName(c.studentId)}</span>
@@ -1023,7 +1023,7 @@ function CommentsSection() {
                     variant="ghost"
                     size="icon"
                     className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
-                    onClick={() => handleDelete(c._id)}
+                    onClick={() => handleDelete(c.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -1142,7 +1142,7 @@ function MaterialsSection() {
                 >
                   <option value="" disabled>Select a class…</option>
                   {(classes ?? []).map((cls: any) => (
-                    <option key={cls._id} value={cls._id}>{cls.name}</option>
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
                 </select>
               </div>
@@ -1179,7 +1179,7 @@ function MaterialsSection() {
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {(materials ?? []).map((material: any) => (
-          <Card key={material._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={material.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-4">
@@ -1189,7 +1189,7 @@ function MaterialsSection() {
                   <div>
                     <h3 className="text-base font-bold text-slate-800">{material.title}</h3>
                     <p className="text-[11px] text-slate-500 font-medium tracking-wide">
-                      {(classes ?? []).find((c: any) => c._id === material.classId)?.name ?? material.classId}
+                      {(classes ?? []).find((c: any) => c.id === material.classId)?.name ?? material.classId}
                     </p>
                   </div>
                 </div>
@@ -1223,7 +1223,7 @@ function MaterialsSection() {
                   className="border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 rounded-xl"
                   onClick={async () => {
                     try {
-                      await apiDelete('/api/materials', { id: material._id });
+                      await apiDelete('/api/materials', { id: material.id });
                       toast.success("Material deleted.");
                       await refetchMaterials();
                     } catch (err) {
@@ -1350,7 +1350,7 @@ function AnnouncementsSection() {
           </Card>
         )}
         {(announcements ?? []).map((a: any) => (
-          <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={a.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -1423,8 +1423,8 @@ function MessagesSection() {
             <tbody>
               {(messages ?? []).map((message: any) => (
                 <tr
-                  key={message._id}
-                  onClick={() => handleOpen(message._id, message.read)}
+                  key={message.id}
+                  onClick={() => handleOpen(message.id, message.read)}
                   className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer ${!message.read ? "bg-blue-50/30" : ""}`}
                 >
                   <td className="p-4 pl-6">

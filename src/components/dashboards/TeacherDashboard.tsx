@@ -10,6 +10,7 @@ import { useMessages, useUnreadCount } from "@/hooks/use-messages";
 import { useReportComments } from "@/hooks/use-report-comments";
 import { useTeachers } from "@/hooks/use-teachers";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api/client";
+import { REPORT_COMMENT_ACTIONS } from "@/lib/report-comments/actions";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -807,15 +808,15 @@ function CommentsSection() {
     setDrafting(true);
     setError(null);
     try {
-      const result = await apiPost<{ commentId: string; draft: string }>('/api/report-comments', {
-        action: 'draft',
+      const result = await apiPost<{ id: string; draft: string }>('/api/report-comments', {
+        action: REPORT_COMMENT_ACTIONS.draftWithAI,
         studentId,
         subject: subject.trim(),
         term: term.trim(),
         rawNotes: rawNotes.trim(),
         scores: parsedScores.length > 0 ? parsedScores : undefined,
       });
-      setActiveDraftId(result.commentId);
+      setActiveDraftId(result.id);
       setDraftText(result.draft);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't draft a comment.");
@@ -829,7 +830,11 @@ function CommentsSection() {
     setSaving(true);
     setError(null);
     try {
-      await apiPatch('/api/report-comments', { id: activeDraftId, draft: draftText });
+      await apiPost('/api/report-comments', {
+        action: REPORT_COMMENT_ACTIONS.updateDraft,
+        id: activeDraftId,
+        draft: draftText,
+      });
       setActiveDraftId(null);
       toast.success("Draft saved.");
       await refetchComments();
@@ -849,7 +854,11 @@ function CommentsSection() {
     setApproving(true);
     setError(null);
     try {
-      await apiPost('/api/report-comments', { id: activeDraftId, action: 'approve', finalText: draftText });
+      await apiPost('/api/report-comments', {
+        action: REPORT_COMMENT_ACTIONS.approve,
+        id: activeDraftId,
+        finalText: draftText,
+      });
       setActiveDraftId(null);
       toast.success("Comment approved.");
       await refetchComments();
@@ -862,7 +871,7 @@ function CommentsSection() {
 
   const handleDelete = async (id: string) => {
     try {
-      await apiDelete('/api/report-comments', { id });
+      await apiPost('/api/report-comments', { action: REPORT_COMMENT_ACTIONS.delete, id });
       toast.success("Comment deleted.");
       await refetchComments();
     } catch (err) {

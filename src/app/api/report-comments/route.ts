@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { reportComments, students } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireTeacherOrAdmin, requireTenantMember, assertTenantResource } from "@/lib/api/auth";
+import { REPORT_COMMENT_ACTIONS } from "@/lib/report-comments/actions";
 
 export async function GET(request: Request) {
   try {
@@ -80,15 +81,15 @@ export async function POST(request: Request) {
     const { action } = body;
 
     switch (action) {
-      case "saveDraft":
+      case REPORT_COMMENT_ACTIONS.saveDraft:
         return handleSaveDraft(body);
-      case "updateDraft":
+      case REPORT_COMMENT_ACTIONS.updateDraft:
         return handleUpdateDraft(body);
-      case "approve":
+      case REPORT_COMMENT_ACTIONS.approve:
         return handleApprove(body);
-      case "delete":
+      case REPORT_COMMENT_ACTIONS.delete:
         return handleDelete(body);
-      case "draftWithAI":
+      case REPORT_COMMENT_ACTIONS.draftWithAI:
         return handleDraftWithAI(body);
       default:
         return NextResponse.json({ error: "Unknown action." }, { status: 400 });

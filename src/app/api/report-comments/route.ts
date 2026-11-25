@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { reportComments, students } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireTeacherOrAdmin, requireTenantMember, assertTenantResource } from "@/lib/api/auth";
+import { REPORT_COMMENT_ACTIONS } from "@/lib/report-comments/actions";
+import { draftReportComment } from "@/lib/ai/report-comment";
 
 export async function GET(request: Request) {
   try {
@@ -80,15 +82,15 @@ export async function POST(request: Request) {
     const { action } = body;
 
     switch (action) {
-      case "saveDraft":
+      case REPORT_COMMENT_ACTIONS.saveDraft:
         return handleSaveDraft(body);
-      case "updateDraft":
+      case REPORT_COMMENT_ACTIONS.updateDraft:
         return handleUpdateDraft(body);
-      case "approve":
+      case REPORT_COMMENT_ACTIONS.approve:
         return handleApprove(body);
-      case "delete":
+      case REPORT_COMMENT_ACTIONS.delete:
         return handleDelete(body);
-      case "draftWithAI":
+      case REPORT_COMMENT_ACTIONS.draftWithAI:
         return handleDraftWithAI(body);
       default:
         return NextResponse.json({ error: "Unknown action." }, { status: 400 });
@@ -133,7 +135,8 @@ async function handleSaveDraft(body: {
       scores: scores ?? null,
       draft,
       status: "draft",
-      model: "claude-3-5-haiku-latest",
+      // Written by the teacher, not drafted by AI.
+      model: "manual",
       createdBy: result.data.userId,
       createdAt: Date.now(),
     })
@@ -252,62 +255,17 @@ async function handleDraftWithAI(body: {
   const check = assertTenantResource(student[0], result.data.tenantId, "That student");
   if (check instanceof NextResponse) return check;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "The AI comment service isn't configured yet (missing ANTHROPIC_API_KEY)." },
-      { status: 500 },
-    );
-  }
-
-  const MODEL = "claude-3-5-haiku-latest";
-  const scoresText =
-    scores && scores.length > 0
-      ? scores.map((s) => `${s.subject}: ${s.score}/${s.max}`).join(", ")
-      : "no scores provided";
-
-  const prompt = [
-    `You are writing the ${term} report card comment for ${student[0].name} in ${subject}.`,
-    `Write 3-5 warm, professional sentences for a Nigerian premium private school.`,
-    `Lead with the student's strengths, then one or two concrete areas for improvement, and end encouragingly.`,
-    `Base everything strictly on the teacher's notes below. Never invent facts that are not in the notes.`,
-    `Teacher's notes: ${rawNotes}`,
-    `Scores: ${scoresText}`,
-  ].join("\n");
-
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 400,
-      system:
-        "You are a careful, professional teacher's assistant. You draft report card comments that a human teacher will review and edit. Keep them specific and honest.",
-      messages: [{ role: "user", content: prompt }],
-    }),
+  const ai = await draftReportComment({
+    studentName: student[0].name,
+    subject: subject.trim(),
+    term: term.trim(),
+    rawNotes,
+    scores,
   });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error("Anthropic API error", response.status, errorBody.slice(0, 500));
-    return NextResponse.json(
-      { error: "The AI service returned an error. Please try again." },
-      { status: 502 },
-    );
+  if (!ai.ok) {
+    return NextResponse.json({ error: ai.error }, { status: ai.status });
   }
-
-  const data = (await response.json()) as { content?: { text?: string }[] };
-  const draft = (data.content ?? []).map((c) => c.text ?? "").join("").trim();
-  if (!draft) {
-    return NextResponse.json(
-      { error: "The AI service returned an empty draft. Please try again." },
-      { status: 502 },
-    );
-  }
+  const draft = ai.draft;
 
   const [{ id }] = await db
     .insert(reportComments)
@@ -320,7 +278,7 @@ async function handleDraftWithAI(body: {
       scores: scores ?? null,
       draft,
       status: "draft",
-      model: MODEL,
+      model: ai.model,
       createdBy: result.data.userId,
       createdAt: Date.now(),
     })

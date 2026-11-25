@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { apiPost, apiPatch, apiDelete } from "@/lib/api/client";
+import { PAYMENT_ACTIONS } from "@/lib/payments/actions";
 import { useAuth } from "@/hooks/use-auth";
 import { useStudents } from "@/hooks/use-students";
 import { useTeachers } from "@/hooks/use-teachers";
@@ -682,7 +683,7 @@ function InvitesSection() {
   };
 
   const handleRevoke = async (inviteId: string) => {
-    try { await apiDelete("/api/users", { inviteId }); toast.success("Invite revoked"); refetchInvites(); }
+    try { await apiDelete("/api/users", { id: inviteId }); toast.success("Invite revoked"); refetchInvites(); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Failed to revoke invite"); }
   };
 
@@ -793,20 +794,20 @@ function FeesSection() {
     if (!title.trim() || !term.trim() || Number.isNaN(parsed) || parsed <= 0) { setError("Enter a title, term and a positive amount."); return; }
     setSubmitting(true); setError(null);
     try {
-      await apiPost("/api/payments", { action: "createFeeSchedule", title: title.trim(), amountKobo: Math.round(parsed * 100), term: term.trim(), dueDate, classId: classId ?? undefined });
+      await apiPost("/api/payments", { action: PAYMENT_ACTIONS.createFeeSchedule, title: title.trim(), amountKobo: Math.round(parsed * 100), term: term.trim(), dueDate, classId: classId ?? undefined });
       toast.success("Fee schedule created"); setTitle(""); setAmountNaira(""); setTerm(""); setDueDate(todayIso()); setClassId(null); setShowForm(false); refetchFeeSchedules();
     } catch (err) { const msg = err instanceof Error ? err.message : "Couldn't create fee schedule."; setError(msg); toast.error(msg); } finally { setSubmitting(false); }
   };
 
   const handleToggleActive = async (schedule: any) => {
-    try { await apiPatch("/api/payments", { action: "updateFeeSchedule", id: schedule.id, active: !schedule.active }); toast.success("Fee schedule updated"); refetchFeeSchedules(); }
+    try { await apiPost("/api/payments", { action: PAYMENT_ACTIONS.updateFeeSchedule, id: schedule.id, active: !schedule.active }); toast.success("Fee schedule updated"); refetchFeeSchedules(); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Couldn't update that fee schedule."); }
   };
 
   const handleGenerate = async (schedule: any) => {
     const chosen = genClass[schedule.id];
     try {
-      const res = await apiPost("/api/payments", { action: "generateInvoices", feeScheduleId: schedule.id, classId: chosen || undefined }) as Record<string, any>;
+      const res = await apiPost("/api/payments", { action: PAYMENT_ACTIONS.generateInvoices, feeScheduleId: schedule.id, classId: chosen || undefined }) as Record<string, any>;
       setGenResult({ scheduleId: schedule.id, created: res.created }); refetchInvoices();
     } catch (err) { toast.error(err instanceof Error ? err.message : "Couldn't generate invoices."); }
   };

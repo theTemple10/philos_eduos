@@ -9,7 +9,7 @@ import { useInvoices, useMyPayments } from "@/hooks/use-payments";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useMessages } from "@/hooks/use-messages";
 import { apiPost, apiPatch } from "@/lib/api/client";
-import { PAYMENT_ACTIONS } from "@/lib/payments/actions";
+import { PAYMENT_ACTIONS, type PaymentOutcome } from "@/lib/payments/actions";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,13 +31,19 @@ import {
   Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandLogo";
 
 export default function ParentDashboard() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState("overview");
+  // Paystack returns the parent to /dashboard?trxref=…&reference=… (#17).
+  const [paymentReference] = useState(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("reference"),
+  );
+  const [activeSection, setActiveSection] = useState(paymentReference ? "payments" : "overview");
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
   const handleSignOut = async () => {
@@ -132,7 +138,7 @@ export default function ParentDashboard() {
           {activeSection === "materials" && <MaterialsSection selectedChildId={selectedChildId} onSelectChild={setSelectedChildId} />}
           {activeSection === "announcements" && <AnnouncementsSection />}
           {activeSection === "messages" && <MessagesSection />}
-          {activeSection === "payments" && <PaymentsSection />}
+          {activeSection === "payments" && <PaymentsSection returnReference={paymentReference} />}
         </div>
       </div>
     </div>
@@ -834,11 +840,65 @@ function MessagesSection() {
   );
 }
 
-function PaymentsSection() {
-  const { data: invoices, isLoading: invoicesLoading } = useInvoices();
-  const { data: payments, isLoading: paymentsLoading } = useMyPayments();
+type StatusNotice = { tone: "info" | "success" | "warning" | "error"; text: string };
+
+const NOTICE_STYLES: Record<StatusNotice["tone"], string> = {
+  info: "bg-blue-50 border-blue-100 text-blue-700",
+  success: "bg-green-50 border-green-100 text-green-700",
+  warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
+  error: "bg-red-50 border-red-100 text-red-700",
+};
+
+const OUTCOME_NOTICES: Record<PaymentOutcome, StatusNotice> = {
+  paid: { tone: "success", text: "Payment received. Thank you! The invoice has been updated." },
+  "already-paid": { tone: "success", text: "This payment has already been confirmed." },
+  pending: {
+    tone: "info",
+    text: "Paystack hasn't confirmed this payment yet. If you completed it, it will show as paid here within a few minutes.",
+  },
+  failed: { tone: "error", text: "The payment didn't go through. You can try again." },
+  "needs-review": {
+    tone: "warning",
+    text: "We received a payment that doesn't match this invoice. The school will check it. Please don't pay again in the meantime.",
+  },
+  unknown: { tone: "error", text: "We couldn't find that payment on your account." },
+};
+
+function PaymentsSection({ returnReference }: { returnReference: string | null }) {
+  const { data: invoices, isLoading: invoicesLoading, refetch: refetchInvoices } = useInvoices();
+  const { data: payments, isLoading: paymentsLoading, refetch: refetchPayments } = useMyPayments();
   const [payingInvoice, setPayingInvoice] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<StatusNotice | null>(
+    returnReference ? { tone: "info", text: "Confirming your payment with Paystack…" } : null,
+  );
+
+  // Back from Paystack checkout: confirm the payment once, then drop the
+  // reference from the address bar so a refresh doesn't repeat it.
+  // (Repeating would be harmless: confirmation is idempotent.)
+  useEffect(() => {
+    if (!returnReference) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { outcome } = await apiPost<{ outcome: PaymentOutcome }>("/api/payments", {
+          action: PAYMENT_ACTIONS.verifyPayment,
+          reference: returnReference,
+        });
+        if (cancelled) return;
+        setNotice(OUTCOME_NOTICES[outcome] ?? OUTCOME_NOTICES.pending);
+        await Promise.all([refetchInvoices(), refetchPayments()]);
+      } catch (err) {
+        if (!cancelled) {
+          setNotice({ tone: "error", text: err instanceof Error ? err.message : "Couldn't confirm the payment." });
+        }
+      } finally {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [returnReference, refetchInvoices, refetchPayments]);
 
   if (invoicesLoading || paymentsLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
@@ -846,7 +906,7 @@ function PaymentsSection() {
 
   const handlePay = async (invoiceId: string) => {
     setPayingInvoice(invoiceId);
-    setStatusMessage(null);
+    setNotice(null);
     try {
       const result = await apiPost<{ authorizationUrl: string }>('/api/payments', {
         action: PAYMENT_ACTIONS.initializePayment,
@@ -856,7 +916,7 @@ function PaymentsSection() {
       // where the payment is confirmed. A new tab is often blocked on phones.
       window.location.assign(result.authorizationUrl);
     } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : "Couldn't start payment.");
+      setNotice({ tone: "error", text: err instanceof Error ? err.message : "Couldn't start payment." });
       setPayingInvoice(null);
     }
   };
@@ -868,8 +928,10 @@ function PaymentsSection() {
         <p className="text-slate-500 font-medium">Manage payments and view transaction history.</p>
       </div>
 
-      {statusMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium">{statusMessage}</div>
+      {notice && (
+        <div role="status" className={`mb-6 p-4 rounded-xl border text-sm font-medium ${NOTICE_STYLES[notice.tone]}`}>
+          {notice.text}
+        </div>
       )}
 
       <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100 mb-6">
@@ -936,8 +998,8 @@ function PaymentsSection() {
                 <div className="text-right">
                   <p className="text-sm font-bold text-slate-800">₦{(p.amountKobo / 100).toLocaleString()}</p>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                    p.status === "completed" ? "bg-green-50 text-green-700 border border-green-100" : "bg-yellow-50 text-yellow-700 border border-yellow-100"
-                  }`}>{p.status}</span>
+                    p.status === "completed" ? "bg-green-50 text-green-700 border border-green-100" : p.status === "failed" ? "bg-red-50 text-red-700 border border-red-100" : "bg-yellow-50 text-yellow-700 border border-yellow-100"
+                  }`}>{p.status === "needs_review" ? "under review" : p.status}</span>
                 </div>
               </div>
             ))}

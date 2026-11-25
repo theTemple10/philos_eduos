@@ -179,10 +179,10 @@ function OverviewSection() {
   const { data: student } = useStudentByUser();
   const { data: myGrades } = useMyGrades();
   const { data: classes } = useClasses();
-  const { data: materials } = useMaterialsForStudent(student?._id);
-  const { data: attendance } = useAttendanceByStudent(student?._id);
+  const { data: materials } = useMaterialsForStudent(student?.id);
+  const { data: attendance } = useAttendanceByStudent(student?.id);
 
-  const myClass = (classes ?? []).find((c: any) => c._id === student?.classId);
+  const myClass = (classes ?? []).find((c: any) => c.id === student?.classId);
 
   const avgPct =
     myGrades && myGrades.length > 0
@@ -263,7 +263,7 @@ function OverviewSection() {
             {recentGrades.map((g: any) => {
               const pct = percentOf(g.score, g.maxScore);
               return (
-                <div key={g._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
+                <div key={g.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="bg-slate-50 p-1.5 rounded-full"><GraduationCap className="w-3.5 h-3.5 text-slate-500" /></div>
                     <div>
@@ -338,7 +338,7 @@ function GradesSection() {
               {(myGrades ?? []).map((g: any) => {
                 const pct = percentOf(g.score, g.maxScore);
                 return (
-                  <tr key={g._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={g.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-bold border border-slate-200">
@@ -381,7 +381,7 @@ function GradesSection() {
 
 function AttendanceSection() {
   const { data: student } = useStudentByUser();
-  const { data: records } = useAttendanceByStudent(student?._id);
+  const { data: records } = useAttendanceByStudent(student?.id);
 
   const stats = {
     total: (records ?? []).length,
@@ -440,7 +440,7 @@ function AttendanceSection() {
             </thead>
             <tbody>
               {(records ?? []).map((r: any) => (
-                <tr key={r._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                   <td className="p-4 pl-6 text-sm font-medium text-slate-700">{formatDate(r.date)}</td>
                   <td className="p-4 pr-6">
                     <span className={`text-[11px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${
@@ -473,7 +473,7 @@ function AttendanceSection() {
 
 function MaterialsSection() {
   const { data: student } = useStudentByUser();
-  const { data: materials } = useMaterialsForStudent(student?._id);
+  const { data: materials } = useMaterialsForStudent(student?.id);
 
   return (
     <div>
@@ -486,7 +486,7 @@ function MaterialsSection() {
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {(materials ?? []).map((material: any) => (
-          <Card key={material._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={material.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-4">
@@ -551,7 +551,7 @@ function AnnouncementsSection() {
           </Card>
         )}
         {(announcements ?? []).map((a: any) => (
-          <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={a.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -594,7 +594,7 @@ function MessagesSection() {
     return nameById.get(senderId) ?? "School Member";
   };
 
-  const replyTarget = (messages ?? []).find((m: any) => m._id === replyingTo);
+  const replyTarget = (messages ?? []).find((m: any) => m.id === replyingTo);
 
   const handleOpen = async (id: string, read: boolean) => {
     if (!read) {
@@ -645,8 +645,8 @@ function MessagesSection() {
             <tbody>
               {(messages ?? []).map((message: any) => (
                 <tr
-                  key={message._id}
-                  onClick={() => handleOpen(message._id, message.read)}
+                  key={message.id}
+                  onClick={() => handleOpen(message.id, message.read)}
                   className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer ${!message.read ? "bg-blue-50/30" : ""}`}
                 >
                   <td className="p-4 pl-6">
@@ -667,10 +667,10 @@ function MessagesSection() {
                         className="text-slate-500 hover:text-slate-900 font-semibold"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setReplyingTo(replyingTo === message._id ? null : message._id);
+                          setReplyingTo(replyingTo === message.id ? null : message.id);
                         }}
                       >
-                        {replyingTo === message._id ? "Cancel" : "Reply"}
+                        {replyingTo === message.id ? "Cancel" : "Reply"}
                       </Button>
                     ) : (
                       <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
@@ -735,7 +735,7 @@ function MessagesSection() {
 function ScheduleSection() {
   const { data: student } = useStudentByUser();
   const { data: classes } = useClasses();
-  const myClass = (classes ?? []).find((c: any) => c._id === student?.classId);
+  const myClass = (classes ?? []).find((c: any) => c.id === student?.classId);
 
   const schedule = myClass
     ? [{ time: "--", class: myClass.name, teacher: "--", room: myClass.room || "--", days: "--" }]

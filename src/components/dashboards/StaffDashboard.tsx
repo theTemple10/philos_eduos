@@ -183,7 +183,7 @@ function OverviewSection() {
         <CardContent className="space-y-3">
           {tasks.length === 0 && <p className="text-sm text-slate-500 font-medium">No tasks assigned yet.</p>}
           {tasks.slice(0, 5).map((t: any) => (
-            <div key={t._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+            <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
               <div>
                 <p className="text-sm font-bold text-slate-800">{t.title}</p>
                 {t.dueDate && <p className="text-xs text-slate-400 font-medium">Due {t.dueDate}</p>}
@@ -253,7 +253,7 @@ function TasksSection() {
 
       <div className="grid gap-4">
         {tasks.map((t: any) => (
-          <Card key={t._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={t.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -273,18 +273,18 @@ function TasksSection() {
                       variant="outline"
                       size="sm"
                       className="border-slate-200 text-green-600 hover:bg-green-50 font-semibold rounded-xl"
-                      onClick={() => handleComplete(t._id)}
-                      disabled={busyId === t._id}
+                      onClick={() => handleComplete(t.id)}
+                      disabled={busyId === t.id}
                     >
-                      {busyId === t._id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Mark Complete"}
+                      {busyId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Mark Complete"}
                     </Button>
                   )}
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-red-500 hover:text-red-700 hover:bg-red-50 font-semibold"
-                    onClick={() => handleDelete(t._id)}
-                    disabled={busyId === t._id}
+                    onClick={() => handleDelete(t.id)}
+                    disabled={busyId === t.id}
                   >
                     Delete
                   </Button>
@@ -322,7 +322,7 @@ function AnnouncementsSection() {
 
       <div className="space-y-4">
         {announcements.map((a: any) => (
-          <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={a.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -402,7 +402,7 @@ function MessagesSection() {
             </thead>
             <tbody>
               {incoming.map((m: any) => (
-                <tr key={m._id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${!m.read ? "bg-blue-50/30" : ""}`}>
+                <tr key={m.id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${!m.read ? "bg-blue-50/30" : ""}`}>
                   <td className="p-4 pl-6 text-sm font-semibold text-slate-800">School Member</td>
                   <td className="p-4 text-sm text-slate-600 max-w-md truncate">{m.content}</td>
                   <td className="p-4 text-xs text-slate-400 font-medium">{new Date(m.createdAt).toLocaleString()}</td>
@@ -415,7 +415,7 @@ function MessagesSection() {
                           className="text-slate-500 hover:text-slate-900 font-semibold"
                           onClick={async () => {
                             try {
-                              await apiPatch('/api/messages', { id: m._id });
+                              await apiPatch('/api/messages', { id: m.id });
                               await refetch();
                             } catch (_err) {
                               toast.error("Failed to mark as read.");
@@ -429,9 +429,9 @@ function MessagesSection() {
                         variant="ghost"
                         size="sm"
                         className="text-blue-600 hover:text-blue-700 font-semibold"
-                        onClick={() => setReplyTo(replyTo === m._id ? null : m._id)}
+                        onClick={() => setReplyTo(replyTo === m.id ? null : m.id)}
                       >
-                        {replyTo === m._id ? "Cancel" : "Reply"}
+                        {replyTo === m.id ? "Cancel" : "Reply"}
                       </Button>
                     </div>
                   </td>
@@ -475,7 +475,7 @@ function MessagesSection() {
           </CardHeader>
           <CardContent className="space-y-2">
             {sent.slice(0, 5).map((m: any) => (
-              <div key={m._id} className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+              <div key={m.id} className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
                 <p className="text-sm text-slate-700">{m.content}</p>
                 <p className="text-xs text-slate-400 mt-1">{new Date(m.createdAt).toLocaleString()}</p>
               </div>

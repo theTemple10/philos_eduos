@@ -21,6 +21,20 @@ const eslintConfig = [
       "@next/next/no-img-element": "off",
       "react/no-unescaped-entities": "off",
       "react/no-children-prop": "off",
+      // Records from the API are keyed `id` (Postgres via Drizzle). `_id` came
+      // from the previous backend and is always undefined here (#34). With
+      // `any` allowed above, TypeScript can't catch it, so lint does.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[property.name='_id']",
+          message: "Records are keyed `id`, not `_id` (#34).",
+        },
+        {
+          selector: "Property[key.name='_id'], TSPropertySignature[key.name='_id']",
+          message: "Records are keyed `id`, not `_id` (#34).",
+        },
+      ],
       "@typescript-eslint/no-unused-vars": ["warn", {
         "argsIgnorePattern": "^_",
         "varsIgnorePattern": "^_",

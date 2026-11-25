@@ -129,7 +129,38 @@ script for this step.)
 
 ## 7. Paystack (Optional)
 
-Set `PAYSTACK_SECRET_KEY` in both `.env.local` and Vercel env vars to enable payment initialization and verification from the parent dashboard. The current API route does not implement Paystack's signed webhook protocol, so do not configure `/api/payments` as a Paystack webhook endpoint yet.
+Parents pay invoices through Paystack checkout. Use **test** keys until you are ready to take real money.
+
+1. In the Paystack dashboard → **Settings → API Keys & Webhooks**, copy the
+   **Secret key** (`sk_test_…` while testing, `sk_live_…` in production).
+2. Set it as `PAYSTACK_SECRET_KEY` in Vercel (and in `.env.local` for local
+   work), together with `SITE_URL`. Redeploy.
+3. On the same Paystack page, set the **Webhook URL** to
+   `https://<your-site>/api/payments/webhook`. Test and live modes have
+   separate webhook settings; set the one that matches your key.
+
+### How a payment is confirmed
+
+1. **Pay Now** creates a `pending` payment with a random reference. It then
+   sends the parent to Paystack checkout in the same tab.
+2. Paystack returns the parent to `/dashboard?reference=…`. The dashboard
+   asks the server to verify, and shows the outcome.
+3. Independently, Paystack calls the webhook. Its `x-paystack-signature`
+   (HMAC SHA-512 of the body with the secret key) must be valid, or it is
+   rejected.
+
+Both paths ask Paystack's verify API for the real status, amount and
+currency. They settle in one transaction that moves the payment from
+`pending` to `completed` only once. Whichever arrives second changes
+nothing. If the amount or currency doesn't match the invoice, the payment
+becomes `needs_review` and the invoice is left alone for the school to
+check.
+
+Only a school admin, or the student's linked parent or the student, can
+start, verify or look up a payment.
+
+`PAYSTACK_API_BASE` exists only for tests (pointing at a local stand-in).
+Never set it in Vercel.
 
 ---
 

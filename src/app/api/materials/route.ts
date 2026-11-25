@@ -3,6 +3,14 @@ import { db } from "@/lib/db";
 import { studyMaterials, students } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireTenantMember, requireTeacherOrAdmin, requireRole, assertTenantResource } from "@/lib/api/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  MATERIALS_BUCKET,
+  checkMaterialFile,
+  isPathInScope,
+  isSafeExternalUrl,
+  storagePathOf,
+} from "@/lib/materials/files";
 
 export async function GET(request: Request) {
   try {
@@ -73,6 +81,29 @@ export async function POST(request: Request) {
     const check = assertTenantResource(cls[0], result.data.tenantId, "That class");
     if (check instanceof NextResponse) return check;
 
+    // Uploaded file (#4): it must sit in this school's and class's folder and
+    // really exist; its type comes from our own rules, not the request.
+    // Otherwise it's a link, which must be http(s).
+    let storedType = String(fileType);
+    const path = storagePathOf(String(fileUrl));
+    if (path) {
+      if (!isPathInScope(path, result.data.tenantId, classId)) {
+        return NextResponse.json({ error: "That file doesn't belong to this class." }, { status: 400 });
+      }
+      const rule = checkMaterialFile({ name: path, size: 1 });
+      if (!rule.ok) return NextResponse.json({ error: rule.error }, { status: 400 });
+      storedType = rule.label;
+      const { data: exists } = await createAdminClient().storage.from(MATERIALS_BUCKET).exists(path);
+      if (!exists) {
+        return NextResponse.json(
+          { error: "The upload didn't finish. Please choose the file and try again." },
+          { status: 400 },
+        );
+      }
+    } else if (!isSafeExternalUrl(String(fileUrl))) {
+      return NextResponse.json({ error: "Links must start with http:// or https://." }, { status: 400 });
+    }
+
     const [{ id }] = await db
       .insert(studyMaterials)
       .values({
@@ -83,7 +114,7 @@ export async function POST(request: Request) {
         uploadedBy: result.data.userId,
         tenantId: result.data.tenantId,
         fileUrl,
-        fileType,
+        fileType: storedType.slice(0, 20),
         createdAt: Date.now(),
       })
       .returning({ id: studyMaterials.id });
@@ -111,6 +142,14 @@ export async function DELETE(request: Request) {
     if (check instanceof NextResponse) return check;
 
     await db.delete(studyMaterials).where(eq(studyMaterials.id, id));
+
+    // Remove the uploaded file too, if it was one (#4). A failure here leaves
+    // an unreferenced file but must not undo the delete.
+    const path = storagePathOf(rows[0].fileUrl);
+    if (path && isPathInScope(path, result.data.tenantId)) {
+      const { error } = await createAdminClient().storage.from(MATERIALS_BUCKET).remove([path]);
+      if (error) console.error("material file removal failed", path, error);
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE /api/materials", err);

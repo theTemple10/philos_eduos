@@ -153,7 +153,7 @@ function useMyChildren() {
   const mine = students.filter((s: any) => s.parentId === user?.id);
   return mine.map((s: any) => ({
     ...s,
-    className: classes.find((c: any) => c._id === s.classId)?.name ?? "Class",
+    className: classes.find((c: any) => c.id === s.classId)?.name ?? "Class",
   }));
 }
 
@@ -162,7 +162,7 @@ function ChildSelector({
   selected,
   onSelect,
 }: {
-  children: { _id: string; name: string; className: string }[];
+  children: { id: string; name: string; className: string }[];
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -170,10 +170,10 @@ function ChildSelector({
     <div className="flex flex-wrap gap-2 mb-6">
       {children.map((child) => (
         <button
-          key={child._id}
-          onClick={() => onSelect(child._id)}
+          key={child.id}
+          onClick={() => onSelect(child.id)}
           className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
-            selected === child._id
+            selected === child.id
               ? "bg-slate-900 text-white border-slate-900 shadow-md"
               : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
           }`}
@@ -189,9 +189,9 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
   const myChildren = useMyChildren();
   const { data: messages } = useMessages();
   const { data: invoices } = useInvoices();
-  const { data: attendance1 } = useAttendanceByStudent(myChildren?.[0]?._id);
-  const { data: attendance2 } = useAttendanceByStudent(myChildren?.[1]?._id);
-  const { data: attendance3 } = useAttendanceByStudent(myChildren?.[2]?._id);
+  const { data: attendance1 } = useAttendanceByStudent(myChildren?.[0]?.id);
+  const { data: attendance2 } = useAttendanceByStudent(myChildren?.[1]?.id);
+  const { data: attendance3 } = useAttendanceByStudent(myChildren?.[2]?.id);
 
   const attendanceRate = (() => {
     const all = [attendance1, attendance2, attendance3]
@@ -253,7 +253,7 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
               </p>
             )}
             {myChildren.map((child: any) => (
-              <div key={child._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
+              <div key={child.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-bold border border-slate-200">
                     {child.name.split(" ").map((n: string) => n[0]).join("")}
@@ -264,7 +264,7 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
                   </div>
                 </div>
                 <button
-                  onClick={() => onSelectChild(child._id)}
+                  onClick={() => onSelectChild(child.id)}
                   className="text-xs font-bold text-blue-600 hover:text-blue-700"
                 >
                   View
@@ -283,7 +283,7 @@ function OverviewSection({ onSelectChild }: { onSelectChild: (id: string) => voi
               <p className="text-sm text-slate-500 font-medium">No recent activity yet.</p>
             )}
             {(messages ?? []).slice(0, 5).map((m: any) => (
-              <div key={m._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
+              <div key={m.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50/80 transition-colors border border-transparent hover:border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="bg-slate-50 p-1.5 rounded-full">
                     <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
@@ -326,7 +326,7 @@ function ChildrenSection({ onSelectChild }: { onSelectChild: (id: string) => voi
 
       <div className="grid gap-5 md:grid-cols-2">
         {myChildren.map((child: any) => (
-          <Card key={child._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={child.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-4">
@@ -356,7 +356,7 @@ function ChildrenSection({ onSelectChild }: { onSelectChild: (id: string) => voi
                 <Button
                   variant="outline"
                   className="flex-1 border-slate-200 text-slate-600 hover:bg-slate-900 hover:text-white font-semibold rounded-xl transition-all"
-                  onClick={() => onSelectChild(child._id)}
+                  onClick={() => onSelectChild(child.id)}
                 >
                   View Details
                 </Button>
@@ -377,8 +377,8 @@ function PerformanceSection({
   onSelectChild: (id: string) => void;
 }) {
   const myChildren = useMyChildren();
-  const selectedChild = myChildren?.find((c: any) => c._id === selectedChildId) ?? myChildren?.[0];
-  const { data: grades, isLoading: gradesLoading } = useGradesByStudent(selectedChild?._id);
+  const selectedChild = myChildren?.find((c: any) => c.id === selectedChildId) ?? myChildren?.[0];
+  const { data: grades, isLoading: gradesLoading } = useGradesByStudent(selectedChild?.id);
 
   if (myChildren === undefined || gradesLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
@@ -397,7 +397,7 @@ function PerformanceSection({
         <p className="text-slate-500 font-medium">View your children&apos;s academic performance and progress reports.</p>
       </div>
 
-      <ChildSelector children={myChildren} selected={selectedChild?._id ?? null} onSelect={onSelectChild} />
+      <ChildSelector children={myChildren} selected={selectedChild?.id ?? null} onSelect={onSelectChild} />
 
       {grades.length === 0 && (
         <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100">
@@ -429,7 +429,7 @@ function PerformanceSection({
                 {grades.map((g: any) => {
                   const pct = Math.round((g.score / g.maxScore) * 100);
                   return (
-                    <tr key={g._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <tr key={g.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td className="p-4 pl-6 text-sm font-semibold text-slate-800">{g.subject}</td>
                       <td className="p-4 text-center text-sm font-bold text-slate-700">{g.score}</td>
                       <td className="p-4 text-center text-sm text-slate-500">{g.maxScore}</td>
@@ -459,8 +459,8 @@ function AttendanceSection({
   onSelectChild: (id: string) => void;
 }) {
   const myChildren = useMyChildren();
-  const selectedChild = myChildren?.find((c: any) => c._id === selectedChildId) ?? myChildren?.[0];
-  const { data: records, isLoading: recordsLoading } = useAttendanceByStudent(selectedChild?._id);
+  const selectedChild = myChildren?.find((c: any) => c.id === selectedChildId) ?? myChildren?.[0];
+  const { data: records, isLoading: recordsLoading } = useAttendanceByStudent(selectedChild?.id);
 
   if (myChildren === undefined || recordsLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
@@ -473,7 +473,7 @@ function AttendanceSection({
         <p className="text-slate-500 font-medium">Track your children&apos;s attendance and participation.</p>
       </div>
 
-      <ChildSelector children={myChildren} selected={selectedChild?._id ?? null} onSelect={onSelectChild} />
+      <ChildSelector children={myChildren} selected={selectedChild?.id ?? null} onSelect={onSelectChild} />
 
       {records.length === 0 && (
         <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100">
@@ -495,7 +495,7 @@ function AttendanceSection({
               </thead>
               <tbody>
                 {records.map((r: any) => (
-                  <tr key={r._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                     <td className="p-4 pl-6 text-sm font-medium text-slate-700">{r.date}</td>
                     <td className="p-4 pr-6">
                       <span className={`text-[11px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${
@@ -562,7 +562,7 @@ function TransportationSection() {
 
       <div className="grid gap-6">
         {records.map((r: any) => (
-          <Card key={r._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={r.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -598,8 +598,8 @@ function MaterialsSection({
   onSelectChild: (id: string) => void;
 }) {
   const myChildren = useMyChildren();
-  const selectedChild = myChildren?.find((c: any) => c._id === selectedChildId) ?? myChildren?.[0];
-  const { data: materials, isLoading: materialsLoading } = useMaterialsForStudent(selectedChild?._id);
+  const selectedChild = myChildren?.find((c: any) => c.id === selectedChildId) ?? myChildren?.[0];
+  const { data: materials, isLoading: materialsLoading } = useMaterialsForStudent(selectedChild?.id);
 
   if (myChildren === undefined || materialsLoading) {
     return <div className="animate-pulse text-slate-500 font-medium">Loading…</div>;
@@ -612,7 +612,7 @@ function MaterialsSection({
         <p className="text-slate-500 font-medium">Access study materials and resources for your children.</p>
       </div>
 
-      <ChildSelector children={myChildren} selected={selectedChild?._id ?? null} onSelect={onSelectChild} />
+      <ChildSelector children={myChildren} selected={selectedChild?.id ?? null} onSelect={onSelectChild} />
 
       {materials.length === 0 && (
         <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100">
@@ -624,7 +624,7 @@ function MaterialsSection({
 
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {materials.map((m: any) => (
-          <Card key={m._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={m.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-4">
@@ -675,7 +675,7 @@ function AnnouncementsSection() {
 
       <div className="space-y-4">
         {announcements.map((a: any) => (
-          <Card key={a._id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
+          <Card key={a.id} className="border-0 shadow-sm bg-white/60 backdrop-blur-sm hover:shadow-md transition-all border-slate-100">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -755,7 +755,7 @@ function MessagesSection() {
             </thead>
             <tbody>
               {incoming.map((m: any) => (
-                <tr key={m._id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${!m.read ? "bg-blue-50/30" : ""}`}>
+                <tr key={m.id} className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${!m.read ? "bg-blue-50/30" : ""}`}>
                   <td className="p-4 pl-6 text-sm font-semibold text-slate-800">School Member</td>
                   <td className="p-4 text-sm text-slate-600 max-w-md truncate">{m.content}</td>
                   <td className="p-4 text-xs text-slate-400 font-medium">{new Date(m.createdAt).toLocaleString()}</td>
@@ -768,7 +768,7 @@ function MessagesSection() {
                           className="text-slate-500 hover:text-slate-900 font-semibold"
                           onClick={async () => {
                             try {
-                              await apiPatch('/api/messages', { id: m._id });
+                              await apiPatch('/api/messages', { id: m.id });
                               await refetch();
                             } catch (_err) {
                               toast.error("Failed to mark as read.");
@@ -782,9 +782,9 @@ function MessagesSection() {
                         variant="ghost"
                         size="sm"
                         className="text-blue-600 hover:text-blue-700 font-semibold"
-                        onClick={() => setReplyTo(replyTo === m._id ? null : m._id)}
+                        onClick={() => setReplyTo(replyTo === m.id ? null : m.id)}
                       >
-                        {replyTo === m._id ? "Cancel" : "Reply"}
+                        {replyTo === m.id ? "Cancel" : "Reply"}
                       </Button>
                     </div>
                   </td>
@@ -828,7 +828,7 @@ function MessagesSection() {
           </CardHeader>
           <CardContent className="space-y-2">
             {sent.slice(0, 5).map((m: any) => (
-              <div key={m._id} className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+              <div key={m.id} className="p-3 rounded-xl bg-slate-50/80 border border-slate-100">
                 <p className="text-sm text-slate-700">{m.content}</p>
                 <p className="text-xs text-slate-400 mt-1">{new Date(m.createdAt).toLocaleString()}</p>
               </div>

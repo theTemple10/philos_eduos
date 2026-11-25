@@ -683,7 +683,7 @@ function InvitesSection() {
   };
 
   const handleRevoke = async (inviteId: string) => {
-    try { await apiDelete("/api/users", { inviteId }); toast.success("Invite revoked"); refetchInvites(); }
+    try { await apiDelete("/api/users", { id: inviteId }); toast.success("Invite revoked"); refetchInvites(); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Failed to revoke invite"); }
   };
 

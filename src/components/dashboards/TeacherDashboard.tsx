@@ -11,6 +11,14 @@ import { useReportComments } from "@/hooks/use-report-comments";
 import { useTeachers } from "@/hooks/use-teachers";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api/client";
 import { REPORT_COMMENT_ACTIONS } from "@/lib/report-comments/actions";
+import {
+  BANDS,
+  averagePercent,
+  bandFor,
+  parseScores,
+  suggestComments,
+  type Band,
+} from "@/lib/report-comments/bank";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import {
   MATERIALS_BUCKET,
@@ -113,7 +121,7 @@ export default function TeacherDashboard() {
             { id: "classes", label: "My Classes", icon: Users },
             { id: "attendance", label: "Attendance", icon: ClipboardCheck },
             { id: "grades", label: "Grade Book", icon: GraduationCap },
-            { id: "comments", label: "AI Report Comments", icon: Sparkles },
+            { id: "comments", label: "Report Comments", icon: Sparkles },
             { id: "materials", label: "Study Materials", icon: FileText },
             { id: "announcements", label: "Announcements", icon: Bell },
             { id: "messages", label: "Messages", icon: MessageSquare },
@@ -790,6 +798,22 @@ function CommentsSection() {
 
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [draftText, setDraftText] = useState("");
+
+  // Comment bank (#40): band from the scores, or chosen by the teacher.
+  const [bandChoice, setBandChoice] = useState<Band | "">("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [picking, setPicking] = useState<string | null>(null);
+  const parsedScores = parseScores(scoresText);
+  const average = averagePercent(parsedScores);
+  const band: Band | "" = average !== null ? bandFor(average) : bandChoice;
+
+  // "Draft with AI" only shows when the server has an AI key (#40).
+  const [aiAvailable, setAiAvailable] = useState(false);
+  useEffect(() => {
+    apiGet<{ available: boolean }>("/api/report-comments/ai-status")
+      .then((r) => setAiAvailable(Boolean(r.available)))
+      .catch(() => setAiAvailable(false));
+  }, []);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
 
@@ -803,16 +827,6 @@ function CommentsSection() {
       setError("Select a student and fill in subject, term and notes.");
       return;
     }
-    const parsedScores = scoresText
-      .split(",")
-      .map((part) => {
-        const [subj, ratio] = part.split(":").map((p) => p.trim());
-        if (!subj || !ratio) return undefined;
-        const [score, max] = ratio.split("/").map((n) => parseFloat(n.trim()));
-        if (Number.isNaN(score) || Number.isNaN(max)) return undefined;
-        return { subject: subj, score, max };
-      })
-      .filter((s): s is { subject: string; score: number; max: number } => s !== undefined);
     setDrafting(true);
     setError(null);
     try {
@@ -830,6 +844,44 @@ function CommentsSection() {
       setError(err instanceof Error ? err.message : "Couldn't draft a comment.");
     } finally {
       setDrafting(false);
+    }
+  };
+
+  const handleSuggest = () => {
+    if (!studentId || !subject.trim() || !term.trim()) {
+      setError("Select a student and fill in subject and term.");
+      return;
+    }
+    if (!band) {
+      setError("Enter the student's scores, or choose how they performed.");
+      return;
+    }
+    setError(null);
+    setSuggestions(suggestComments({ name: studentName(studentId), subject, band }));
+  };
+
+  const handlePick = async (text: string) => {
+    if (!studentId) return;
+    setPicking(text);
+    setError(null);
+    try {
+      const result = await apiPost<{ id: string }>("/api/report-comments", {
+        action: REPORT_COMMENT_ACTIONS.saveDraft,
+        studentId,
+        subject: subject.trim(),
+        term: term.trim(),
+        rawNotes: rawNotes.trim(),
+        scores: parsedScores.length > 0 ? parsedScores : undefined,
+        draft: text,
+      });
+      setActiveDraftId(result.id);
+      setDraftText(text);
+      setSuggestions([]);
+      await refetchComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't use that comment.");
+    } finally {
+      setPicking(null);
     }
   };
 
@@ -890,8 +942,8 @@ function CommentsSection() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">AI Report Comments</h1>
-        <p className="text-slate-500 font-medium">Draft report card comments with AI, then review and approve them.</p>
+        <h1 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Report Comments</h1>
+        <p className="text-slate-500 font-medium">Start from a comment matched to the student's results, edit it, then approve it.</p>
       </div>
 
       <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-sm border-slate-100 mb-6">
@@ -951,7 +1003,9 @@ function CommentsSection() {
             </div>
           </div>
           <div className="mt-4">
-            <label className="text-sm font-bold text-slate-700 block mb-2">Raw Notes</label>
+            <label className="text-sm font-bold text-slate-700 block mb-2">
+              Notes <span className="font-medium text-slate-400">(optional{aiAvailable ? "; AI drafting uses them" : ""})</span>
+            </label>
             <Textarea
               value={rawNotes}
               onChange={(e) => setRawNotes(e.target.value)}
@@ -961,7 +1015,7 @@ function CommentsSection() {
             />
           </div>
           <div className="mt-4">
-            <label className="text-sm font-bold text-slate-700 block mb-2">Scores (optional)</label>
+            <label className="text-sm font-bold text-slate-700 block mb-2">Scores</label>
             <Input
               value={scoresText}
               onChange={(e) => setScoresText(e.target.value)}
@@ -969,19 +1023,69 @@ function CommentsSection() {
               className="border-slate-200/60 bg-slate-50/50 focus-visible:ring-blue-500"
             />
           </div>
+          <div className="mt-4">
+            <label className="text-sm font-bold text-slate-700 block mb-2">Performance</label>
+            {average !== null ? (
+              <p className="text-sm font-medium text-slate-600">
+                Average <strong className="text-slate-900">{average}%</strong>:{" "}
+                <strong className="text-blue-700">{BANDS.find((b) => b.id === band)?.label}</strong>
+              </p>
+            ) : (
+              <select
+                className="w-full md:w-80 p-3 border border-slate-200 rounded-xl bg-slate-50/50 focus:ring-blue-500 focus:border-blue-500"
+                value={bandChoice}
+                onChange={(e) => setBandChoice(e.target.value as Band | "")}
+              >
+                <option value="">No scores: choose how they did…</option>
+                {BANDS.map((b) => (
+                  <option key={b.id} value={b.id}>{b.label} ({b.range})</option>
+                ))}
+              </select>
+            )}
+          </div>
           {error && <p className="text-sm text-red-600 font-medium mt-3">{error}</p>}
-          <Button
-            onClick={handleDraft}
-            disabled={drafting}
-            className="mt-4 bg-slate-900 hover:bg-slate-800 text-white gap-2 font-semibold rounded-xl shadow-md"
-          >
-            {drafting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            Draft with AI
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              onClick={handleSuggest}
+              className="bg-slate-900 hover:bg-slate-800 text-white gap-2 font-semibold rounded-xl shadow-md"
+            >
+              <FileText className="w-4 h-4" />
+              Suggest comments
+            </Button>
+            {aiAvailable && (
+              <Button
+                onClick={handleDraft}
+                disabled={drafting}
+                variant="outline"
+                className="border-slate-200 text-slate-700 gap-2 font-semibold rounded-xl"
+              >
+                {drafting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-yellow-500" />}
+                Draft with AI
+              </Button>
+            )}
+          </div>
+
+          {suggestions.length > 0 && !activeDraftId && (
+            <div className="mt-6 space-y-2">
+              <p className="text-sm font-bold text-slate-700">Pick a comment to start from (you can edit it next):</p>
+              {suggestions.map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => handlePick(text)}
+                  disabled={picking !== null}
+                  className="block w-full text-left p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40 text-sm text-slate-700 transition-colors disabled:opacity-60"
+                >
+                  {picking === text ? <Loader2 className="inline w-4 h-4 animate-spin mr-2" /> : null}
+                  {text}
+                </button>
+              ))}
+            </div>
+          )}
 
           {activeDraftId && (
             <div className="mt-6 p-4 rounded-xl bg-yellow-50/50 border border-yellow-100">
-              <label className="text-sm font-bold text-slate-700 block mb-2">Generated Draft (edit before approving)</label>
+              <label className="text-sm font-bold text-slate-700 block mb-2">Draft (edit before approving)</label>
               <Textarea
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}

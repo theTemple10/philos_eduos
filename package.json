@@ -18,6 +18,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:v2:generate": "drizzle-kit generate --config drizzle.v2.config.ts",
+    "db:rehearse": "node scripts/db-rehearse.mjs",
     "storage:setup": "node --env-file=.env.local scripts/setup-storage.mjs"
   },
   "dependencies": {

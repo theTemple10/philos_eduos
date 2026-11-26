@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795697126488,
+      "tag": "0000_reset_v1",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795697289255,
+      "tag": "0001_v2_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795697290819,
+      "tag": "0002_auth_and_rls",
+      "breakpoints": true
+    }
+  ]
+}

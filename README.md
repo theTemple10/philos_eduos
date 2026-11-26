@@ -2,6 +2,8 @@
 
 Multi-tenant school management platform for Nigerian educational institutions.
 
+> **Picking the project up?** Start with [docs/HANDOFF.md](docs/HANDOFF.md): current state, next steps, decisions and new-machine setup.
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router)

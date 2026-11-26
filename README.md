@@ -68,6 +68,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run db:generate` | Generate migration files |
 | `npm run db:migrate` | Run migrations |
 | `npm run db:studio` | Open Drizzle Studio |
+| `npm run storage:setup` | Create/update the private `materials` storage bucket |
+| `npm test` | Unit tests (Node's built-in runner) |
 
 ## Dependency Overrides
 
@@ -94,7 +96,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
 | `DATABASE_URL` | Yes | PostgreSQL connection string (Supabase pooler) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (API routes) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key. Server only; issues file upload and download links (see DEPLOY.md §8) |
 | `RESEND_API_KEY` | No | Resend helper key; current OTP flow sends through Supabase Auth |
 | `PAYSTACK_SECRET_KEY` | No | Paystack secret key for payments |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key for AI report comments |

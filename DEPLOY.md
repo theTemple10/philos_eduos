@@ -87,7 +87,7 @@ Sign-in is passwordless. `/auth` calls Supabase `signInWithOtp` with
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` |
 | `DATABASE_URL` | `postgresql://postgres.xxxx:...` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (from Supabase Settings → API → service_role) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` (from Supabase Settings → API → service_role; server only, used for file storage) |
 | `RESEND_API_KEY` | Optional; currently unused by the sign-in flow |
 | `SITE_URL` | `https://your-app.vercel.app` |
 | `PAYSTACK_SECRET_KEY` | `sk_test_xxxxx` (if using payments) |
@@ -163,6 +163,38 @@ start, verify or look up a payment.
 Never set it in Vercel.
 
 ---
+
+## 8. File Storage for Learning Materials
+
+Teachers' uploads go to a **private** Supabase Storage bucket, `materials`.
+Create it once (and again whenever the allowed types change):
+
+```bash
+npm run storage:setup   # uses NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from .env.local
+```
+
+This creates or updates the bucket with the app's own rules from
+`src/lib/materials/files.ts`:
+- 25 MB per file;
+- PDF, Word, PowerPoint, Excel, text, PNG/JPG/WEBP, MP3/M4A and MP4 only.
+
+`SUPABASE_SERVICE_ROLE_KEY` must also be set in Vercel. The API uses it to
+issue upload slots and download links.
+
+How it works:
+1. The server checks the teacher, the class and the file, then issues a
+   one-time signed upload URL under `<school>/<class>/`.
+2. The browser uploads straight to Storage. This avoids Vercel's ~4.5 MB
+   request limit.
+3. Saving the material checks the file's folder and that it exists.
+
+Opening a material goes through `/api/materials/file?id=…`. It checks the
+viewer (staff of the school, a student in the class, or that student's
+parent), then redirects to a link that expires after 5 minutes. There is
+no public URL for any file.
+
+Free-plan budget: 1 GB of storage in total. Share long videos as YouTube or
+Drive links rather than uploads.
 
 ## Local Development
 

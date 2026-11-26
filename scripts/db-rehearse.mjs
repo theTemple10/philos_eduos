@@ -19,6 +19,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
+import { CONTEXT_SQL, classScopeQuery, studentScopeQuery } from "../src/lib/auth/scope-sql.ts";
 
 const URL_ = process.env.REHEARSAL_DATABASE_URL ?? "postgres://postgres:rehearsal@localhost:55432/postgres";
 const host = new URL(URL_).hostname;
@@ -162,6 +163,53 @@ try {
   await sql`insert into payments (school_id, student_id, invoice_id, amount_kobo, description, reference) values (${s.id}, ${stu.id}, ${inv.id}, 15000000, 'Tuition', 'PE-1')`;
   await rejects("duplicate payment reference", (tx) => tx`insert into payments (school_id, student_id, amount_kobo, description, reference) values (${s.id}, ${stu.id}, 100, 'x', 'PE-1')`);
   await rejects("deleting a student who has payments", (tx) => tx`delete from students where id = ${stu.id}`);
+
+  // Scope checks (src/lib/auth/scope-sql.ts): the exact queries the app runs.
+  const reach = async (q) => (await sql.unsafe(q.text, q.params)).length > 0;
+  const [m1] = await sql`select id from memberships where user_id = ${u1} and status = 'active'`;
+  const [tM] = await sql`insert into memberships (school_id, user_id, role) values (${s.id}, ${u2}, 'teacher') returning id`;
+  const [cls2] = await sql`insert into classes (school_id, level, arm, name) values (${s.id}, 'JSS 3', 'Blue', 'JSS 3 Blue') returning id`;
+  const [stu2] = await sql`insert into students (school_id, admission_no, first_name, last_name) values (${s.id}, 'GF/2026/002', 'Bola', 'Ade') returning id`;
+  await sql`insert into enrollments (school_id, student_id, class_id, session_id) values (${s.id}, ${stu2.id}, ${cls2.id}, ${sess.id})`;
+  await sql`insert into teaching_assignments (school_id, teacher_id, class_id, subject_id) values (${s.id}, ${tM.id}, ${cls.id}, ${subj.id})`;
+  const pU = randomUUID(), sU = randomUUID();
+  await sql`insert into auth.users (id) values (${pU}), (${sU})`;
+  await sql`insert into users (id, email) values (${pU}, 'parent@home.ng'), (${sU}, 'gf2026001@students.local')`;
+  const [pM] = await sql`insert into memberships (school_id, user_id, role) values (${s.id}, ${pU}, 'parent') returning id`;
+  const [sM] = await sql`insert into memberships (school_id, user_id, role) values (${s.id}, ${sU}, 'student') returning id`;
+  await sql`insert into guardians (school_id, parent_user_id, student_id) values (${s.id}, ${pU}, ${stu.id})`;
+  await sql`update students set user_id = ${sU} where id = ${stu.id}`;
+  const [stuX] = await sql`select id from students where school_id = ${s2.id} limit 1`.then(async (r) => r.length ? r : sql`insert into students (school_id, admission_no, first_name, last_name) values (${s2.id}, 'OS/1', 'X', 'Y') returning id`);
+
+  const admin = { schoolId: s.id, userId: u1, membershipId: m1.id };
+  const teacher = { schoolId: s.id, userId: u2, membershipId: tM.id };
+  const parent = { schoolId: s.id, userId: pU, membershipId: pM.id };
+  const student = { schoolId: s.id, userId: sU, membershipId: sM.id };
+
+  ok(await reach(studentScopeQuery("school", stu.id, admin)) && await reach(studentScopeQuery("school", stu2.id, admin)), "admin reaches every student in the school");
+  ok(!(await reach(studentScopeQuery("school", stuX.id, admin))), "admin can't reach another school's student");
+  ok(await reach(studentScopeQuery("assigned", stu.id, teacher)), "teacher reaches a student in an assigned class");
+  ok(!(await reach(studentScopeQuery("assigned", stu2.id, teacher))), "teacher can't reach a student in an unassigned class");
+  ok(!(await reach(studentScopeQuery("assigned", stuX.id, teacher))), "teacher can't reach another school's student");
+  ok(await reach(classScopeQuery("assigned", cls.id, teacher)) && !(await reach(classScopeQuery("assigned", cls2.id, teacher))), "teacher reaches only assigned classes");
+  ok(await reach(studentScopeQuery("children", stu.id, parent)), "parent reaches their child");
+  ok(!(await reach(studentScopeQuery("children", stu2.id, parent))), "parent can't reach another child");
+  ok(await reach(classScopeQuery("children", cls.id, parent)) && !(await reach(classScopeQuery("children", cls2.id, parent))), "parent reaches only their child's class");
+  ok(await reach(studentScopeQuery("self", stu.id, student)) && !(await reach(studentScopeQuery("self", stu2.id, student))), "student reaches only themself");
+  ok(await reach(classScopeQuery("self", cls.id, student)) && !(await reach(classScopeQuery("self", cls2.id, student))), "student reaches only their own class");
+  ok(!(await reach(studentScopeQuery("children", stu.id, { ...parent, schoolId: s2.id }))), "a forged school id finds nothing");
+  await accepts("teacher loses reach when the session is no longer current", async (tx) => {
+    await tx`update academic_sessions set is_current = false where id = ${sess.id}`;
+    const q = studentScopeQuery("assigned", stu.id, teacher);
+    if ((await tx.unsafe(q.text, q.params)).length) throw new Error("still reachable");
+  });
+  const [c1] = await sql.unsafe(CONTEXT_SQL, [u2]);
+  ok(c1?.role === "teacher" && c1?.school_slug === "greenfield" && c1?.school_status === "active", "context query returns the active membership and school");
+  await accepts("suspended membership gives no context", async (tx) => {
+    await tx`update memberships set status = 'suspended' where id = ${tM.id}`;
+    const [c] = await tx.unsafe(CONTEXT_SQL, [u2]);
+    if (c.membership_id !== null) throw new Error("suspended membership still returned");
+  });
 
   await sql`insert into audit_log (school_id, actor_id, action) values (${s.id}, ${u1}, 'membership.role_changed')`;
   await rejects("editing the audit log", (tx) => tx`update audit_log set action = 'nothing'`);

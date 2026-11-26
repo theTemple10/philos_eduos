@@ -7,6 +7,8 @@ import {
   GraduationCap,
   HeartHandshake,
   Lock,
+  Mail,
+  MessageCircle,
   Palette,
   School,
   Smartphone,
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
+import { CONTACT_EMAIL, WHATSAPP_DISPLAY, whatsappLink } from "@/lib/contact";
 import { ReportCard } from "@/components/landing/ReportCard";
 import { Reveal } from "@/components/landing/Reveal";
 import { TermTimeline } from "@/components/landing/TermTimeline";
@@ -290,17 +293,34 @@ export default function Landing() {
                 Bring Philos to your school
               </h2>
               <p className="mx-auto mb-10 max-w-2xl text-lg font-medium text-slate-300">
-                We set your school up with you: classes, subjects and your first
-                staff. Then your team signs in with a secure link sent to their
-                email. Already set up? Sign in below.
+                Tell us about your school and we&apos;ll set it up with you:
+                classes, subjects and your first staff. Then your team signs in
+                with a secure link sent to their email.
               </p>
-              <Link
-                href="/auth"
-                className="inline-flex items-center gap-2 rounded-full bg-white px-10 py-4 font-bold text-slate-900 shadow-2xl transition-all hover:-translate-y-1 hover:bg-slate-50"
-              >
-                Get started
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
-              </Link>
+              <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                <a
+                  href={whatsappLink()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-white px-8 py-4 font-bold text-slate-900 shadow-2xl transition-all hover:-translate-y-1 hover:bg-slate-50"
+                >
+                  <MessageCircle className="h-5 w-5 text-green-600" aria-hidden="true" />
+                  Chat on WhatsApp
+                </a>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Bringing Philos EduOS to our school")}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-500 px-8 py-4 font-semibold text-white transition-all hover:border-slate-300"
+                >
+                  <Mail className="h-5 w-5" aria-hidden="true" />
+                  {CONTACT_EMAIL}
+                </a>
+              </div>
+              <p className="mt-8 text-sm text-slate-400">
+                WhatsApp {WHATSAPP_DISPLAY} · Already set up?{" "}
+                <Link href="/auth" className="font-semibold text-white underline-offset-4 hover:underline">
+                  Sign in
+                </Link>
+              </p>
             </div>
           </Reveal>
         </section>
@@ -309,6 +329,12 @@ export default function Landing() {
         <footer className="border-t border-slate-900 bg-slate-950 py-12 text-sm text-slate-400">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:px-6 md:flex-row lg:px-8">
             <BrandLogo size="sm" tone="dark" />
+            <p className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-white">{CONTACT_EMAIL}</a>
+              <a href={whatsappLink()} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                WhatsApp {WHATSAPP_DISPLAY}
+              </a>
+            </p>
             <p>&copy; {new Date().getFullYear()} Philos EduOS. All rights reserved.</p>
           </div>
         </footer>

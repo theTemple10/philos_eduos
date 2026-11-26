@@ -1,6 +1,6 @@
 # Handoff: state of the project and how to pick it up
 
-Last updated: 2026-11-26. Read this first when you continue on a new machine
+Last updated: 2026-11-26 (contact details added, #43). Read this first when you continue on a new machine
 or in a new AI-assistant session; nothing from earlier sessions carries over
 except what's in this repo and its GitHub issues.
 
@@ -31,7 +31,7 @@ Live: https://philoseduos-sepia.vercel.app (Vercel deploys `main`).
    - schema: memberships, permissions, sessions/terms (#27), parent–student links;
    - routes: `/admin` console, `/s/<slug>` portal, invite-only onboarding, student credentials (#28).
    - There is **no staging database** (free plan). Write it as one reviewed SQL migration, back up first, and share the plan with the owner before running it.
-4. **Landing page:** add a contact channel (WhatsApp or email) for "Get started". The owner still has to choose one.
+4. ~~Landing page contact channel~~: done in #43 (WhatsApp and email, defined in `src/lib/contact.ts`).
 
 ## Owner decisions to respect
 - **Onboarding:** invite-only. The super-admin provisions schools; there's no self-serve sign-up.

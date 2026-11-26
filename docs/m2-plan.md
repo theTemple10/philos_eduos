@@ -1,12 +1,12 @@
 # M2 plan: roles, school onboarding, sessions and terms
 
-Status: **draft for owner review** (2026-11-26). Nothing here has been run.
+Status: **accepted** (2026-11-26). The owner approved all recommendations for D1–D5. Nothing has been run against production yet.
 Covers #15 (roles RFC), #27 (sessions/terms), #28 (student sign-in), #5
 (atomic invites), and folds in #7 (foreign keys).
 
 ## 1. Decisions needed from the owner
 
-| # | Question | Recommendation |
+| # | Question | Decision (owner accepted the recommendation, 2026-11-26) |
 |---|---|---|
 | D1 | The database holds one test school ("Prudence High School": 1 class, 1 student, 1 announcement). Keep it, or start clean? | **Start clean.** Recreate a test school through the new console; that also tests the console. |
 | D2 | Your own account: platform super-admin only, or also admin of a test school? | **Super-admin only.** Use a second email as the test school's admin, so you see exactly what a principal sees. |

@@ -33,22 +33,15 @@ import {
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import { SCHOOL_ROLES } from "../../auth/permissions";
 
 // ---------------------------------------------------------------------------
 // Value lists
 // ---------------------------------------------------------------------------
 
 export const PLATFORM_ROLES = ["super_admin"] as const;
-export const SCHOOL_ROLES = [
-  "school_admin",
-  "registrar",
-  "bursar",
-  "teacher",
-  "staff",
-  "parent",
-  "student",
-] as const;
-export type SchoolRole = (typeof SCHOOL_ROLES)[number];
+// School roles are defined once, with their permissions.
+export { SCHOOL_ROLES, type SchoolRole } from "../../auth/permissions";
 export const CURRICULA = ["waec_neco", "cambridge", "ib", "american"] as const;
 
 const MEMBERSHIP_STATUSES = ["active", "suspended", "left"] as const;

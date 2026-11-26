@@ -112,10 +112,12 @@ async function handleSaveDraft(body: {
   const result = await requireTeacherOrAdmin();
   if (!result.ok) return result.response;
 
-  const { studentId, subject, term, rawNotes, scores, draft } = body;
-  if (!studentId || !subject?.trim() || !term?.trim() || !rawNotes || !draft) {
+  const { studentId, subject, term, scores, draft } = body;
+  // Notes are optional here: a comment-bank draft (#40) may have none.
+  const rawNotes = typeof body.rawNotes === "string" ? body.rawNotes.trim() : "";
+  if (!studentId || !subject?.trim() || !term?.trim() || !draft?.trim()) {
     return NextResponse.json(
-      { error: "studentId, subject, term, rawNotes, and draft are required." },
+      { error: "studentId, subject, term and draft are required." },
       { status: 400 },
     );
   }
@@ -135,7 +137,7 @@ async function handleSaveDraft(body: {
       scores: scores ?? null,
       draft,
       status: "draft",
-      // Written by the teacher, not drafted by AI.
+      // Written by the teacher or picked from the comment bank, not AI.
       model: "manual",
       createdBy: result.data.userId,
       createdAt: Date.now(),

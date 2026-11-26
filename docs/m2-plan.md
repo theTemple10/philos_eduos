@@ -157,3 +157,18 @@ policies; only the server reads the database.
 
 Each PR includes its own verification. Nothing touches production before
 step 8, and step 8 waits for your go-ahead.
+
+## 7. Progress
+
+| Step | Status |
+|---|---|
+| 1. Schema and migration SQL | PR #46 (into `m2`). Rehearsed: 39 checks. |
+| 2. Permissions | **2a** (permission map, `requirePermission`, scope checks): PR #47, stacked on #46. Rehearsed: 15 more checks, 54 in total. **2b** (moving every route onto v2 and `requirePermission`) is next. |
+| 3–8 | Not started. |
+
+To continue on another machine, start Docker, then:
+```bash
+docker run -d --name philos-rehearsal -e POSTGRES_PASSWORD=rehearsal -p 55432:5432 postgres:17.6
+git checkout m2-permissions   # or m2, once #46/#47 are merged
+npm ci && npm test && npm run db:rehearse
+```

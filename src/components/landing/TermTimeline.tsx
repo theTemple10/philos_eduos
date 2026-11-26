@@ -50,8 +50,8 @@ const STEPS: Step[] = [
     icon: FileText,
     when: "Report time",
     title: "Write report comments",
-    desc: "AI drafts a comment from each student's results. The teacher edits and approves it.",
-    soon: "Printable report cards with your school's branding",
+    desc: "Start from a comment matched to each student's results, edit it, and approve it.",
+    soon: "Printable branded report cards and AI-drafted comments",
   },
   {
     icon: Wallet,

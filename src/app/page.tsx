@@ -74,7 +74,8 @@ const REASONS: Reason[] = [
   {
     icon: Sparkles,
     title: "AI that assists. Teachers decide.",
-    desc: "AI drafts report comments from a student's results. Nothing reaches a parent until a teacher has read and approved it.",
+    desc: "AI will draft report comments from a student's results. Nothing reaches a parent until a teacher has read and approved it.",
+    soon: true,
   },
   {
     icon: Smartphone,
